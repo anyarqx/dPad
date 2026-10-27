@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="23 13 64 64" width="512" height="512">
+<defs>
+  <linearGradient id="verde" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#419b48"/><stop offset="1" stop-color="#36843e"/></linearGradient>
+  <linearGradient id="azul" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#166fc7"/><stop offset="1" stop-color="#1256a0"/></linearGradient>
+</defs>
+<path fill="url(#verde)" d="M 39 68.25
+  C 31.62 63.36 26.34 54.92 26.25 46
+  C 25.71 39.09 28.27 32.26 32.61 27
+  C 37.31 21.03 44.61 17.53 52 16.56
+  C 57.33 16.3 64.85 17.15 68.59 21
+  C 64.21 28.04 55.4 29.67 48.94 34
+  C 43.9 37.21 39.75 42.18 38.32 48
+  C 35.8 54.81 39.14 62.27 39 68.25 Z"/>
+<path fill="url(#azul)" d="M 61 72.15
+  C 56.56 72.9 43.97 74.5 43.51 68
+  C 42.83 61.2 44.97 54.14 49 48.71
+  C 52.21 44.3 56.51 40.8 61 37.83
+  C 60.59 41.57 54.31 45.73 52.53 50
+  C 50.29 53.2 48.7 57.16 48.02 61
+  C 52.69 62.41 58.79 57.73 62.63 55
+  C 65.66 52.26 68.48 48.88 69.86 45
+  C 73.62 38.29 71.94 30.16 73 23.45
+  C 73.64 24.12 74.36 24.71 75 25.38
+  C 80.33 30.81 83.16 38.43 82.8 46
+  C 82.4 53.61 78.82 60.95 73 65.94
+  C 69.51 68.95 65.38 70.94 61 72.15 Z"/>
+</svg>

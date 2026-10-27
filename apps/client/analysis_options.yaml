@@ -1,0 +1,11 @@
+analyzer:
+  exclude:
+    - build/**
+    - web/**
+    - windows/**
+    - linux/**
+    - android/**
+include: package:flutter_lints/flutter.yaml
+linter:
+  rules:
+    package_names: false
