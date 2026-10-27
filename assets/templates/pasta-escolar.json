@@ -1,0 +1,18 @@
+{
+  "name": "Documentação escolar — modelo inicial editável",
+  "documents": [
+    "Comprovante de residência",
+    "CPF",
+    "RG",
+    "Certidão de nascimento",
+    "Histórico escolar ou declarações",
+    "Cartas Bolsa Família",
+    "Fotos 3x4",
+    "Cartão SUS",
+    "Resumo do NIS",
+    "Carteira de vacinação",
+    "Certificado do ensino fundamental"
+  ],
+  "extra_fields": [],
+  "required_identity": ["birth_date", "guardian"]
+}
