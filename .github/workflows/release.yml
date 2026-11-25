@@ -1,0 +1,171 @@
+name: Release
+
+# Compila todos os alvos do projeto e anexa os arquivos à release publicada.
+# Também pode ser executado manualmente (Actions → Release → Run workflow):
+# nesse caso só gera os artefatos para download, sem publicar nada.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+# Menor privilégio por padrão; o job de publicação pede o que precisa.
+permissions:
+  contents: read
+
+# Uma execução por ref; nunca cancela uma release em andamento.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Única fonte da versão do Flutter (a mesma verificada no README).
+  FLUTTER_VERSION: "3.47.5"
+
+jobs:
+  verify:
+    name: Verificar (análise e testes)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+        with:
+          version: ${{ env.FLUTTER_VERSION }}
+      - name: Servidor
+        working-directory: apps/server
+        run: |
+          dart pub get
+          dart analyze
+          dart test
+      - name: Cliente
+        working-directory: apps/client
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+  build:
+    name: Compilar ${{ matrix.id }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      # Um alvo com falha não cancela os outros; a publicação só ocorre se todos passarem.
+      fail-fast: false
+      matrix:
+        # Para adicionar ou remover um alvo, edite apenas esta lista.
+        include:
+          - id: linux-x64
+            # 22.04 = glibc mais antiga: o binário roda em distribuições mais recentes também.
+            os: ubuntu-22.04
+            shell: bash
+            deps: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+            build: |
+              bash tools/build-linux.sh
+              mkdir -p dist
+              tar -czf dist/DoPapelAoDigital-linux-x64.tar.gz -C apps/client/build/linux/x64/release bundle
+          - id: windows-x64
+            os: windows-2022
+            shell: pwsh
+            build: ./tools/build-windows.ps1   # já gera dist/DoPapelAoDigital-windows-x64.zip
+          - id: android
+            os: ubuntu-24.04
+            shell: bash
+            java: "21"
+            sign_android: true
+            build: |
+              bash tools/build-android.sh release
+              mkdir -p dist
+              cp apps/client/build/app/outputs/flutter-apk/app-release.apk dist/DoPapelAoDigital-android.apk
+          - id: web
+            os: ubuntu-24.04
+            shell: bash
+            build: |
+              (cd apps/client && flutter pub get && flutter build web --release)
+              mkdir -p dist
+              (cd apps/client/build/web && zip -qr "$GITHUB_WORKSPACE/dist/DoPapelAoDigital-web.zip" .)
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependências do sistema
+        if: matrix.deps
+        run: ${{ matrix.deps }}
+
+      - name: Java
+        if: matrix.java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+
+      - uses: ./.github/actions/setup-flutter
+        with:
+          version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Chave de assinatura do Android
+        if: matrix.sign_android
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Configure os secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > apps/client/android/app/release.jks
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > apps/client/android/key.properties
+
+      - name: Compilar
+        run: ${{ matrix.build }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.id }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publicar na release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write      # anexar arquivos à release
+      id-token: write      # assinatura da atestação
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: Gerar checksums
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS.txt
+
+      - name: Atestar procedência
+        # Atestações em repositórios privados exigem plano pago do GitHub.
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*
+
+      - name: Anexar à release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"

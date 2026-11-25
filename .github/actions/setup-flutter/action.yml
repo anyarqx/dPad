@@ -1,0 +1,44 @@
+name: Configurar Flutter
+description: Instala o Flutter na versão fixada (com cache do SDK e do pub) em qualquer sistema operacional.
+
+inputs:
+  version:
+    description: Tag oficial do Flutter, por exemplo 3.47.5
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Restaurar cache do SDK
+      id: sdk-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/flutter
+        key: flutter-${{ runner.os }}-${{ inputs.version }}
+
+    - name: Baixar Flutter
+      if: steps.sdk-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        FLUTTER_VERSION: ${{ inputs.version }}
+      run: git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+
+    - name: Configurar PATH e cache do pub
+      shell: bash
+      run: |
+        echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+        echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
+
+    - name: Restaurar cache do pub
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/pub-cache
+        key: pub-${{ runner.os }}-${{ inputs.version }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+        restore-keys: |
+          pub-${{ runner.os }}-${{ inputs.version }}-
+
+    - name: Verificar Flutter
+      shell: bash
+      run: |
+        flutter config --no-analytics
+        flutter --version
