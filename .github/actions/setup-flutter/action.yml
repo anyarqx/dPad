@@ -1,44 +1,38 @@
 name: Configurar Flutter
-description: Instala o Flutter na versão fixada (com cache do SDK e do pub) em qualquer sistema operacional.
-
+description: Instala SDK fixado e restaura caches por arquitetura.
 inputs:
   version:
-    description: Tag oficial do Flutter, por exemplo 3.47.5
+    description: Tag oficial do Flutter
     required: true
-
 runs:
   using: composite
   steps:
-    - name: Restaurar cache do SDK
-      id: sdk-cache
-      uses: actions/cache@v4
+    - uses: actions/cache@v4
+      id: sdk
       with:
         path: ${{ runner.temp }}/flutter
-        key: flutter-${{ runner.os }}-${{ inputs.version }}
-
-    - name: Baixar Flutter
-      if: steps.sdk-cache.outputs.cache-hit != 'true'
+        key: flutter-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
+    - if: steps.sdk.outputs.cache-hit != 'true'
       shell: bash
       env:
-        FLUTTER_VERSION: ${{ inputs.version }}
-      run: git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
-
-    - name: Configurar PATH e cache do pub
-      shell: bash
+        VERSION: ${{ inputs.version }}
+      run: git clone --depth 1 --branch "$VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+    - shell: bash
       run: |
-        echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
-        echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
-
-    - name: Restaurar cache do pub
-      uses: actions/cache@v4
+        if [[ "$RUNNER_OS" == Windows ]]; then
+          echo "$(cygpath -w "$RUNNER_TEMP/flutter/bin")" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$(cygpath -w "$RUNNER_TEMP/pub-cache")" >> "$GITHUB_ENV"
+        else
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
+        fi
+    - uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/pub-cache
-        key: pub-${{ runner.os }}-${{ inputs.version }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+        key: pub-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
         restore-keys: |
-          pub-${{ runner.os }}-${{ inputs.version }}-
-
-    - name: Verificar Flutter
-      shell: bash
+          pub-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}-
+    - shell: bash
       run: |
         flutter config --no-analytics
         flutter --version

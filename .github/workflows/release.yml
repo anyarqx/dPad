@@ -1,29 +1,74 @@
-name: Release
-
-# Compila todos os alvos do projeto e anexa os arquivos à release publicada.
-# Também pode ser executado manualmente (Actions → Release → Run workflow):
-# nesse caso só gera os artefatos para download, sem publicar nada.
+name: Distribuição
 on:
-  release:
-    types: [published]
   workflow_dispatch:
-
-# Menor privilégio por padrão; o job de publicação pede o que precisa.
+    inputs:
+      linux_x64:
+        description: linux-x64
+        type: boolean
+        default: false
+      linux_arm64:
+        description: linux-arm64
+        type: boolean
+        default: false
+      windows_x64:
+        description: windows-x64
+        type: boolean
+        default: false
+      windows_arm64:
+        description: windows-arm64
+        type: boolean
+        default: false
+      android_armv7:
+        description: android-armv7
+        type: boolean
+        default: false
+      android_arm64:
+        description: android-arm64
+        type: boolean
+        default: false
+      android_x64:
+        description: android-x64
+        type: boolean
+        default: false
+      web:
+        description: web
+        type: boolean
+        default: false
+      tag:
+        description: Tag de release existente (opcional; vazio gera apenas artifacts)
+        type: string
+        required: false
 permissions:
   contents: read
-
-# Uma execução por ref; nunca cancela uma release em andamento.
 concurrency:
-  group: release-${{ github.ref }}
+  group: distribution-${{ github.ref }}
   cancel-in-progress: false
-
 env:
-  # Única fonte da versão do Flutter (a mesma verificada no README).
-  FLUTTER_VERSION: "3.47.5"
-
+  FLUTTER_VERSION: '3.47.5'
 jobs:
+  select:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      any: ${{ steps.select.outputs.any }}
+    steps:
+      - id: select
+        shell: bash
+        env:
+          INPUTS: ${{ toJSON(inputs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          options = json.loads(os.environ['INPUTS'] or '{}') or {}
+          entries = [('linux_x64', {'id': 'linux-x64', 'os': 'ubuntu-22.04', 'command': 'bash tools/build/linux.sh x64', 'platform': 'linux'}), ('linux_arm64', {'id': 'linux-arm64', 'os': 'ubuntu-22.04-arm', 'command': 'bash tools/build/linux.sh arm64', 'platform': 'linux'}), ('windows_x64', {'id': 'windows-x64', 'os': 'windows-2022', 'command': './tools/build/windows.ps1 -Architecture x64', 'platform': 'windows'}), ('windows_arm64', {'id': 'windows-arm64', 'os': 'windows-11-arm', 'command': './tools/build/windows.ps1 -Architecture arm64', 'platform': 'windows'}), ('android_armv7', {'id': 'android-armv7', 'os': 'ubuntu-24.04', 'command': 'bash tools/build/android.sh armv7', 'platform': 'android'}), ('android_arm64', {'id': 'android-arm64', 'os': 'ubuntu-24.04', 'command': 'bash tools/build/android.sh arm64', 'platform': 'android'}), ('android_x64', {'id': 'android-x64', 'os': 'ubuntu-24.04', 'command': 'bash tools/build/android.sh x64', 'platform': 'android'}), ('web', {'id': 'web', 'os': 'ubuntu-24.04', 'command': 'bash tools/build/web.sh', 'platform': 'web'})]
+          selected = [m for key, m in entries if options.get(key) is True]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('matrix=' + json.dumps({'include': selected}), file=out)
+              print('any=' + str(bool(selected)).lower(), file=out)
+          PYTHON
   verify:
-    name: Verificar (análise e testes)
+    needs: select
+    if: needs.select.outputs.any == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -31,82 +76,38 @@ jobs:
       - uses: ./.github/actions/setup-flutter
         with:
           version: ${{ env.FLUTTER_VERSION }}
-      - name: Servidor
-        working-directory: apps/server
+      - working-directory: apps/server
         run: |
           dart pub get
           dart analyze
           dart test
-      - name: Cliente
-        working-directory: apps/client
+      - working-directory: apps/client
         run: |
           flutter pub get
           flutter analyze
           flutter test
-
   build:
-    name: Compilar ${{ matrix.id }}
-    needs: verify
+    needs: [select, verify]
+    if: needs.select.outputs.any == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
-      # Um alvo com falha não cancela os outros; a publicação só ocorre se todos passarem.
       fail-fast: false
-      matrix:
-        # Para adicionar ou remover um alvo, edite apenas esta lista.
-        include:
-          - id: linux-x64
-            # 22.04 = glibc mais antiga: o binário roda em distribuições mais recentes também.
-            os: ubuntu-22.04
-            shell: bash
-            deps: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-            build: |
-              bash tools/build-linux.sh
-              mkdir -p dist
-              tar -czf dist/DoPapelAoDigital-linux-x64.tar.gz -C apps/client/build/linux/x64/release bundle
-          - id: windows-x64
-            os: windows-2022
-            shell: pwsh
-            build: ./tools/build-windows.ps1   # já gera dist/DoPapelAoDigital-windows-x64.zip
-          - id: android
-            os: ubuntu-24.04
-            shell: bash
-            java: "21"
-            sign_android: true
-            build: |
-              bash tools/build-android.sh release
-              mkdir -p dist
-              cp apps/client/build/app/outputs/flutter-apk/app-release.apk dist/DoPapelAoDigital-android.apk
-          - id: web
-            os: ubuntu-24.04
-            shell: bash
-            build: |
-              (cd apps/client && flutter pub get && flutter build web --release)
-              mkdir -p dist
-              (cd apps/client/build/web && zip -qr "$GITHUB_WORKSPACE/dist/DoPapelAoDigital-web.zip" .)
-    defaults:
-      run:
-        shell: ${{ matrix.shell }}
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Dependências do sistema
-        if: matrix.deps
-        run: ${{ matrix.deps }}
-
-      - name: Java
-        if: matrix.java
+      - if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - if: matrix.platform == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ matrix.java }}
-
+          java-version: '21'
       - uses: ./.github/actions/setup-flutter
         with:
           version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Chave de assinatura do Android
-        if: matrix.sign_android
+      - name: Assinatura Android
+        if: matrix.platform == 'android'
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -114,37 +115,31 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::Configure os secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD."
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 --decode > apps/client/android/app/release.jks
-          {
-            echo "storeFile=release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > apps/client/android/key.properties
-
-      - name: Compilar
-        run: ${{ matrix.build }}
-
+          set -eu
+          : "${KEYSTORE_BASE64:?}" "${KEYSTORE_PASSWORD:?}" "${KEY_ALIAS:?}" "${KEY_PASSWORD:?}"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > apps/client/android/app/release.jks
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > apps/client/android/key.properties
+      - name: Compilar e empacotar (Linux, Android e Web)
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: ${{ matrix.command }}
+      - name: Compilar e empacotar (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ${{ matrix.command }}
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.id }}
-          path: dist/*
+          path: dist/DoPapelAoDigital-${{ matrix.id }}.*
           if-no-files-found: error
           retention-days: 14
-
   publish:
-    name: Publicar na release
-    if: github.event_name == 'release'
     needs: build
+    if: inputs.tag != ''
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
     permissions:
-      contents: write      # anexar arquivos à release
-      id-token: write      # assinatura da atestação
+      contents: write
+      id-token: write
       attestations: write
     steps:
       - uses: actions/download-artifact@v4
@@ -152,20 +147,28 @@ jobs:
           path: dist
           pattern: dist-*
           merge-multiple: true
-
-      - name: Gerar checksums
+      - name: Checksums
         working-directory: dist
-        run: sha256sum -- * > SHA256SUMS.txt
-
-      - name: Atestar procedência
-        # Atestações em repositórios privados exigem plano pago do GitHub.
-        if: ${{ !github.event.repository.private }}
+        run: sha256sum -- DoPapelAoDigital-* > SHA256SUMS.txt
+      - if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: dist/*
-
-      - name: Anexar à release
+          subject-path: dist/DoPapelAoDigital-*
+      - name: Publicar
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          TAG: ${{ inputs.tag }}
+        run: |
+          shopt -s nullglob
+          new_files=(dist/DoPapelAoDigital-*)
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > /tmp/release-assets
+          while IFS= read -r name; do
+            case "$name" in
+              DoPapelAoDigital-*.zip|DoPapelAoDigital-*.tar.gz|DoPapelAoDigital-*.apk)
+                if [[ ! -f "dist/$name" ]]; then
+                  gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir dist
+                fi;;
+            esac
+          done < /tmp/release-assets
+          (cd dist && sha256sum -- DoPapelAoDigital-* > SHA256SUMS.txt)
+          gh release upload "$TAG" "${new_files[@]}" dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
