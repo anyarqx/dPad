@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import '../../shared/api.dart';
 import '../../shared/widgets.dart';
 import '../../shared/page_header.dart';
+import '../../shared/search_picker.dart';
 
 const roles = {
   'admin': 'Administração',
@@ -42,10 +43,9 @@ class _AccountsPageState extends State<AccountsPage> {
   }
 
   Future<void> edit([JsonMap? account]) async {
-    final saved = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AccountForm(
+    final saved = await openEditor<bool>(
+      context,
+      AccountForm(
         api: widget.api,
         students: List<JsonMap>.from(widget.data['students']),
         account: account,
@@ -61,7 +61,6 @@ class _AccountsPageState extends State<AccountsPage> {
   Widget build(BuildContext context) => PageLayout(
     header: PageHeader(
       title: 'Contas e acessos',
-      subtitle: 'Perfis e vínculos de acesso',
       actions: [
         button(
           'Cadastrar conta',
@@ -94,17 +93,20 @@ class _AccountsPageState extends State<AccountsPage> {
             if (!s.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
+            if (s.data!.isEmpty) {
+              return const Center(child: Text('Nenhuma conta cadastrada.'));
+            }
             return ListView.separated(
               itemCount: s.data!.length,
               separatorBuilder: (_, i) => const PixelDivider(),
               itemBuilder: (c, i) {
                 final a = s.data![i];
+                final hasLogin = a['login'] != null;
+                final disabled = a['enabled'] == 0;
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   leading: Icon(
-                    a['enabled'] == 1
-                        ? FLucideIcons.userRound
-                        : FLucideIcons.userRoundX,
+                    disabled ? FLucideIcons.userRoundX : FLucideIcons.userRound,
                     size: 22,
                   ),
                   title: Text(
@@ -115,11 +117,13 @@ class _AccountsPageState extends State<AccountsPage> {
                     ),
                   ),
                   subtitle: Text(
-                    '${a['login']} · ${roles[a['role']] ?? a['role']}${a['enabled'] == 1 ? '' : ' · Conta desativada'}',
+                    '${roles[a['role']] ?? a['role']} · ${a['login'] ?? 'Perfil de teste'}${disabled ? ' · Conta desativada' : ''}',
                     style: const TextStyle(fontSize: 12),
                   ),
-                  trailing: const Icon(FLucideIcons.chevronRight, size: 18),
-                  onTap: () => edit(a),
+                  trailing: hasLogin
+                      ? const Icon(FLucideIcons.chevronRight, size: 18)
+                      : null,
+                  onTap: hasLogin ? () => edit(a) : null,
                 );
               },
             );
@@ -134,25 +138,33 @@ class AccountForm extends StatefulWidget {
   final Api api;
   final List<JsonMap> students;
   final JsonMap? account;
+  final JsonMap preset;
+  final String? provisionStudent;
   const AccountForm({
     super.key,
     required this.api,
     required this.students,
     this.account,
+    this.preset = const {},
+    this.provisionStudent,
   });
   @override
   State<AccountForm> createState() => _AccountFormState();
 }
 
 class _AccountFormState extends State<AccountForm> {
-  late final name = TextEditingController(text: widget.account?['name']);
-  late final login = TextEditingController(text: widget.account?['login']);
+  late final name = TextEditingController(
+    text: (widget.account ?? widget.preset)['name'],
+  );
+  late final login = TextEditingController(
+    text: (widget.account ?? widget.preset)['login'],
+  );
   final password = TextEditingController(),
       confirmation = TextEditingController();
-  late String role = widget.account?['role'] ?? 'professor';
-  late bool enabled = widget.account?['enabled'] != 0;
+  late String role = (widget.account ?? widget.preset)['role'] ?? 'professor';
+  late bool enabled = (widget.account ?? widget.preset)['enabled'] != 0;
   late final students = <String>{
-    ...List<String>.from(widget.account?['students'] ?? []),
+    ...List<String>.from((widget.account ?? widget.preset)['students'] ?? []),
   };
   bool busy = false;
   String? error;
@@ -184,7 +196,9 @@ class _AccountFormState extends State<AccountForm> {
       await widget.api.send(
         widget.account == null ? 'POST' : 'PATCH',
         widget.account == null
-            ? 'accounts'
+            ? widget.provisionStudent == null
+                  ? 'accounts'
+                  : 'students/${widget.provisionStudent}/account'
             : 'accounts/${widget.account!['id']}',
         {
           'name': name.text,
@@ -205,116 +219,153 @@ class _AccountFormState extends State<AccountForm> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.account == null ? 'Cadastrar conta' : 'Editar conta'),
-    content: SizedBox(
-      width: 520,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+  Widget build(BuildContext context) => EditorPage(
+    title: widget.account == null ? 'Cadastrar conta' : 'Editar conta',
+    body: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.provisionStudent != null && role == 'aluno')
+            readOnlyValue('Aluno', Text(widget.preset['name']))
+          else
             field('Nome completo', name),
-            if (widget.account == null)
-              field('Usuário para entrar', login)
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text('Usuário: ${login.text}'),
-              ),
-            selector(
-              'Papel',
-              role,
-              roles.entries
-                  .map(
-                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
-                  )
-                  .toList(),
-              (v) => setState(() {
-                role = v!;
-                if (!['aluno', 'responsavel'].contains(role)) students.clear();
-                if (role == 'aluno' && students.length > 1) students.clear();
-              }),
+          if (widget.account == null)
+            field('Usuário para entrar', login)
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text('Usuário: ${login.text}'),
             ),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: widget.account == null
-                    ? 'Senha inicial (mínimo 12 caracteres)'
-                    : 'Nova senha (opcional)',
-                border: const OutlineInputBorder(),
-              ),
+          selector(
+            'Papel',
+            role,
+            roles.entries
+                .where(
+                  (e) =>
+                      widget.provisionStudent == null ||
+                      ['aluno', 'responsavel'].contains(e.key),
+                )
+                .map(
+                  (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
+                )
+                .toList(),
+            (v) => setState(() {
+              role = v!;
+              if (widget.provisionStudent != null) {
+                name.text = role == 'aluno'
+                    ? widget.preset['name']
+                    : (widget.preset['guardian'] ?? '');
+              }
+              if (!['aluno', 'responsavel'].contains(role)) students.clear();
+              if (role == 'aluno' && students.length > 1) students.clear();
+            }),
+          ),
+          TextField(
+            controller: password,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: widget.account == null
+                  ? 'Senha inicial (mínimo 12 caracteres)'
+                  : 'Nova senha (opcional)',
+              border: const OutlineInputBorder(),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: confirmation,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirmar senha',
-                border: OutlineInputBorder(),
-              ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: confirmation,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Confirmar senha',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 16),
-            if (widget.account != null)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Conta ativa'),
-                value: enabled,
-                onChanged: busy ? null : (v) => setState(() => enabled = v!),
+          ),
+          const SizedBox(height: 16),
+          if (widget.account != null)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Conta ativa'),
+              value: enabled,
+              onChanged: busy ? null : (v) => setState(() => enabled = v!),
+            ),
+          if (widget.provisionStudent == null &&
+              ['aluno', 'responsavel'].contains(role)) ...[
+            Text(
+              role == 'aluno' ? 'Aluno vinculado' : 'Alunos vinculados',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (widget.students.isEmpty) const Text('Nenhum aluno cadastrado.'),
+            if (role == 'aluno')
+              SearchPicker(
+                label: 'Aluno',
+                value: students.firstOrNull,
+                choices: [
+                  for (final p in widget.students)
+                    SearchChoice(
+                      p['id'],
+                      p['name'],
+                      description: p['registration'] ?? '',
+                    ),
+                ],
+                onChanged: (id) => setState(() {
+                  students.clear();
+                  students.add(id);
+                }),
               ),
-            if (['aluno', 'responsavel'].contains(role)) ...[
-              Text(
-                role == 'aluno' ? 'Aluno vinculado' : 'Alunos vinculados',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+            if (role == 'responsavel') ...[
+              TextButton.icon(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        final selected = await pickMany(
+                          context,
+                          title: 'Vincular alunos',
+                          choices: [
+                            for (final p in widget.students)
+                              SearchChoice(
+                                p['id'],
+                                p['name'],
+                                description: p['registration'] ?? '',
+                              ),
+                          ],
+                          selected: students,
+                          maximum: 30,
+                        );
+                        if (selected != null && mounted) {
+                          setState(() {
+                            students.clear();
+                            students.addAll(selected);
+                          });
+                        }
+                      },
+                icon: const Icon(FLucideIcons.search, size: 18),
+                label: Text('Selecionar alunos (${students.length})'),
               ),
-              if (widget.students.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Cadastre primeiro a pasta do aluno.'),
-                ),
-              for (final p in widget.students)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(p['name'], style: const TextStyle(fontSize: 13)),
-                  subtitle: p['registration'] == null
-                      ? null
-                      : Text('Matrícula ${p['registration']}'),
-                  value: students.contains(p['id']),
-                  onChanged: busy
-                      ? null
-                      : (v) => setState(() {
-                          if (v!) {
-                            if (role == 'aluno') students.clear();
-                            students.add(p['id']);
-                          } else {
-                            students.remove(p['id']);
-                          }
-                        }),
-                ),
+              for (final p
+                  in widget.students
+                      .where((p) => students.contains(p['id']))
+                      .take(3))
+                Text(p['name']),
+              if (students.length > 3) Text('e mais ${students.length - 3}'),
             ],
-            const SizedBox(height: 12),
-            const Text(
-              'Alterar senha, papel ou vínculos encerra as sessões da conta. Não envie senhas por canais públicos.',
-              style: TextStyle(fontSize: 12, height: 1.5),
-            ),
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
           ],
-        ),
+          const SizedBox(height: 12),
+          const Text(
+            'Alterar senha, papel ou vínculos encerra as sessões da conta. Não envie senhas por canais públicos.',
+            style: TextStyle(fontSize: 12, height: 1.5),
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ],
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: busy ? null : () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
       button('Salvar conta', busy ? null : save, primary: true, loading: busy),
     ],
   );

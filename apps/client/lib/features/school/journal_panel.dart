@@ -3,10 +3,12 @@ import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 
 import '../../shared/api.dart';
+import '../../shared/search_picker.dart';
 import '../../shared/widgets.dart';
 import '../../shared/page_header.dart';
 import '../../shared/section_tabs.dart';
 import 'grades_panel.dart';
+import 'record_grid.dart';
 
 class JournalPanel extends StatefulWidget {
   final Api api;
@@ -54,37 +56,31 @@ class _JournalPanelState extends State<JournalPanel> {
     if (mounted) setState(load);
   }
 
-  Future<void> create() async {
+  Future<void> teachers(JsonMap journal) async {
     try {
-      final teachers = List<JsonMap>.from(await widget.api.get('teachers'));
-      final catalog = await widget.api.get('academic/catalog');
-      final components = List<JsonMap>.from(catalog['components'])
-          .where((c) => c['course'] == widget.group['course'])
-          .toList();
+      final options = List<JsonMap>.from(await widget.api.get('teachers'));
       if (!mounted) return;
-      if (await showDialog<bool>(
-            context: context,
-            builder: (_) => _JournalForm(
+      if (await openEditor<bool>(
+            context,
+            TeacherAssignments(
               api: widget.api,
-              group: widget.group['id'],
-              teachers: teachers,
-              components: components,
+              journal: journal,
+              teachers: options,
+              year: widget.group['school_year'],
             ),
           ) ==
           true) {
         refresh();
       }
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
   Future<void> lesson(JsonMap journal, [JsonMap? old]) async {
-    if (await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) =>
-              LessonForm(api: widget.api, journal: journal, lesson: old),
+    if (await openEditor<bool>(
+          context,
+          LessonForm(api: widget.api, journal: journal, lesson: old),
         ) ==
         true) {
       refresh();
@@ -131,7 +127,7 @@ class _JournalPanelState extends State<JournalPanel> {
       });
       refresh();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
@@ -156,20 +152,7 @@ class _JournalPanelState extends State<JournalPanel> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PageHeader(
-              section: true,
-              title: 'Diários de classe',
-              subtitle: 'Componentes e docentes da turma',
-              actions: [
-                if (widget.canConfigure)
-                  button(
-                    'Adicionar diário',
-                    create,
-                    icon: FLucideIcons.plus,
-                    primary: true,
-                  ),
-              ],
-            ),
+            const PageHeader(section: true, title: 'Diários de classe'),
             const SizedBox(height: 16),
             Expanded(
               child: list.isEmpty
@@ -238,6 +221,22 @@ class _JournalPanelState extends State<JournalPanel> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (widget.canConfigure) button('Docentes', () => teachers(j)),
+              if (lessons.isNotEmpty)
+                button('Frequência mensal', () async {
+                  if (await openEditor<bool>(
+                        c,
+                        RecordGrid(
+                          api: widget.api,
+                          journal: j,
+                          records: lessons,
+                        ),
+                        width: 1080,
+                      ) ==
+                      true) {
+                    refresh();
+                  }
+                }),
               if (j['canEdit'] == true)
                 button(
                   'Registrar aula',
@@ -401,115 +400,6 @@ class _JournalPanelState extends State<JournalPanel> {
   );
 }
 
-class _JournalForm extends StatefulWidget {
-  final Api api;
-  final String group;
-  final List<JsonMap> teachers, components;
-  const _JournalForm({
-    required this.api,
-    required this.group,
-    required this.teachers,
-    required this.components,
-  });
-  @override
-  State<_JournalForm> createState() => _JournalFormState();
-}
-
-class _JournalFormState extends State<_JournalForm> {
-  late String? component = widget.components.firstOrNull?['id'];
-  late String? teacher = widget.teachers.firstOrNull?['id'];
-  bool saving = false;
-  String? error;
-
-  @override
-  Widget build(BuildContext c) => AlertDialog(
-    title: const Text('Adicionar diário'),
-    content: SizedBox(
-      width: 480,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            selector(
-              'Componente da matriz',
-              component,
-              [
-                for (final m in widget.components)
-                  DropdownMenuItem(
-                    value: m['id'] as String,
-                    child: Text(
-                      '${m['subject_name']} · ${m['phase']} · ${m['hours']} h',
-                    ),
-                  ),
-              ],
-              (v) => setState(() => component = v),
-              tip: 'Escolha a disciplina e a fase cadastradas na matriz deste curso.',
-            ),
-            if (widget.components.isEmpty)
-              const Text(
-                'Adicione componentes à matriz do curso em Organização acadêmica antes de criar o diário.',
-              ),
-            selector(
-              'Docente responsável',
-              teacher,
-              widget.teachers
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t['id'] as String,
-                      child: Text(t['name']),
-                    ),
-                  )
-                  .toList(),
-              (v) => setState(() => teacher = v),
-            ),
-            if (widget.teachers.isEmpty)
-              const Text(
-                'Cadastre uma conta ativa de professor em Contas e acessos.',
-              ),
-            if (error != null)
-              Text(
-                error!,
-                style: TextStyle(color: Theme.of(c).colorScheme.error),
-              ),
-          ],
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: saving ? null : () => Navigator.pop(c),
-        child: const Text('Cancelar'),
-      ),
-      button(
-        'Criar diário',
-        saving || teacher == null || component == null
-            ? null
-            : () async {
-                setState(() {
-                  saving = true;
-                  error = null;
-                });
-                try {
-                  await widget.api.send('POST', 'journals', {
-                    'class_group': widget.group,
-                    'component': component,
-                    'teacher': teacher,
-                  });
-                  if (c.mounted) Navigator.pop(c, true);
-                } catch (e) {
-                  if (mounted) setState(() => error = '$e');
-                } finally {
-                  if (mounted) setState(() => saving = false);
-                }
-              },
-        primary: true,
-        loading: saving,
-      ),
-    ],
-  );
-}
-
 class LessonForm extends StatefulWidget {
   final Api api;
   final JsonMap journal;
@@ -556,85 +446,80 @@ class _LessonFormState extends State<LessonForm> {
   }
 
   @override
-  Widget build(BuildContext c) => AlertDialog(
-    title: Text(
-      widget.lesson == null
-          ? 'Registrar aula e frequência'
-          : 'Editar rascunho da aula',
-    ),
-    content: SizedBox(
-      width: 640,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext c) => EditorPage(
+    title: widget.lesson == null
+        ? 'Registrar aula e frequência'
+        : 'Editar rascunho da aula',
+    body: ListView(
+      children: [
+        FormColumns(
           children: [
-            field('Data (DD/MM/AAAA)', date),
-            field('Quantidade de aulas', units),
-            field('Conteúdo e atividades realizadas', content, lines: 4),
-            Wrap(
-              spacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            field('Data (DD/MM/AAAA)', date, kind: FieldKind.date),
+            field('Quantidade de aulas', units, kind: FieldKind.integer),
+          ],
+        ),
+        field('Conteúdo e atividades realizadas', content, lines: 2),
+        Wrap(
+          spacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text(
+              'Frequência',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            TextButton(
+              onPressed: saving
+                  ? null
+                  : () => setState(() {
+                      for (final p in roster) {
+                        values[p['id']] = 'Presente';
+                      }
+                    }),
+              child: const Text('Marcar todos presentes'),
+            ),
+          ],
+        ),
+        if (roster.isEmpty)
+          const Text(
+            'Não há matrículas ativas. Ative os alunos antes de lançar a aula.',
+          ),
+        for (final p in roster)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
               children: [
-                const Text(
-                  'Frequência',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                Expanded(
+                  child: Text(
+                    p['student_name'],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => setState(() {
-                          for (final p in roster) {
-                            values[p['id']] = 'Presente';
-                          }
-                        }),
-                  child: const Text('Marcar todos presentes'),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Text('Selecionar frequência'),
+                    value: values[p['id']],
+                    items: [
+                      for (final value in [
+                        'Presente',
+                        'Ausente',
+                        'Justificada',
+                      ])
+                        DropdownMenuItem(value: value, child: Text(value)),
+                    ],
+                    onChanged: saving
+                        ? null
+                        : (v) => setState(() => values[p['id']] = v!),
+                  ),
                 ),
               ],
             ),
-            if (roster.isEmpty)
-              const Text(
-                'Não há matrículas ativas. Ative os alunos antes de lançar a aula.',
-              ),
-            for (final p in roster)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      p['student_name'],
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    selector(
-                      'Presença',
-                      values[p['id']],
-                      ['Presente', 'Ausente', 'Justificada']
-                          .map(
-                            (v) => DropdownMenuItem(value: v, child: Text(v)),
-                          )
-                          .toList(),
-                      (v) => setState(() => values[p['id']] = v!),
-                    ),
-                  ],
-                ),
-              ),
-            const Text(
-              'O rascunho fica disponível apenas à equipe autorizada. Envie para revisão quando terminar.',
-              style: TextStyle(fontSize: 12, height: 1.5),
-            ),
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  error!,
-                  style: TextStyle(color: Theme.of(c).colorScheme.error),
-                ),
-              ),
-          ],
-        ),
-      ),
+          ),
+        if (error != null)
+          Text(error!, style: TextStyle(color: Theme.of(c).colorScheme.error)),
+      ],
     ),
     actions: [
       TextButton(
@@ -681,7 +566,18 @@ class _LessonFormState extends State<LessonForm> {
                       'content': content.text,
                       'attendance': [
                         for (final p in roster)
-                          {'enrollment': p['id'], 'status': values[p['id']]},
+                          {
+                            'enrollment': p['id'],
+                            'status': values[p['id']],
+                            if (widget.lesson != null)
+                              'absences': (widget.lesson!['attendance'] as List)
+                                  .where(
+                                    (a) =>
+                                        a['enrollment'] == p['id'] &&
+                                        a['status'] == values[p['id']],
+                                  )
+                                  .firstOrNull?['absences'],
+                          },
                       ],
                       if (widget.lesson != null)
                         'revision': widget.lesson!['revision'],
@@ -696,6 +592,134 @@ class _LessonFormState extends State<LessonForm> {
               },
         primary: true,
         loading: saving,
+      ),
+    ],
+  );
+}
+
+class TeacherAssignments extends StatefulWidget {
+  final Api api;
+  final JsonMap journal;
+  final List<JsonMap> teachers;
+  final int year;
+  const TeacherAssignments({
+    super.key,
+    required this.api,
+    required this.journal,
+    required this.teachers,
+    required this.year,
+  });
+  @override
+  State<TeacherAssignments> createState() => _TeacherAssignmentsState();
+}
+
+class _TeacherAssignmentsState extends State<TeacherAssignments> {
+  late final assignments = List<JsonMap>.from(widget.journal['teachers'] ?? []);
+  late final from = TextEditingController(text: '${widget.year}-01-01'),
+      to = TextEditingController(text: '${widget.year}-12-31');
+  final role = TextEditingController();
+  String? error;
+  bool saving = false;
+  @override
+  void dispose() {
+    from.dispose();
+    to.dispose();
+    role.dispose();
+    super.dispose();
+  }
+
+  Future<void> add() async {
+    final values = await pickMany(
+      context,
+      title: 'Professores na vigência informada',
+      choices: [
+        for (final t in widget.teachers) SearchChoice(t['id'], t['name']),
+      ],
+      maximum: 12,
+    );
+    if (values == null || !mounted) return;
+    setState(() {
+      for (final t in widget.teachers.where((t) => values.contains(t['id']))) {
+        if (assignments.any(
+          (a) => a['teacher'] == t['id'] && a['valid_from'] == from.text,
+        )) {
+          continue;
+        }
+        assignments.add({
+          'teacher': t['id'],
+          'name': t['name'],
+          'valid_from': from.text,
+          'valid_to': to.text,
+          'assignment': role.text,
+        });
+      }
+    });
+  }
+
+  Future<void> save() async {
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      await widget.api.send(
+        'POST',
+        'journals/${widget.journal['id']}/teachers',
+        {'teachers': assignments, 'revision': widget.journal['revision']},
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) => EditorPage(
+    title: 'Docentes · ${widget.journal['subject']}',
+    body: ListView(
+      children: [
+        for (final a in assignments)
+          ListTile(
+            title: Text(a['name']),
+            subtitle: Text(
+              "${a['valid_from']} a ${a['valid_to']} · ${a['assignment']}",
+            ),
+            trailing: IconButton(
+              tooltip: 'Remover atribuição',
+              onPressed: saving
+                  ? null
+                  : () => setState(() => assignments.remove(a)),
+              icon: const Icon(FLucideIcons.x),
+            ),
+          ),
+        const PixelDivider(),
+        FormColumns(
+          children: [
+            field('Início', from, kind: FieldKind.isoDate),
+            field('Término', to, kind: FieldKind.isoDate),
+            field('Atribuição', role, hint: 'Docência'),
+          ],
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: button(
+            'Adicionar docentes',
+            saving ? null : add,
+            icon: FLucideIcons.plus,
+          ),
+        ),
+        if (error != null)
+          Text(error!, style: TextStyle(color: Theme.of(c).colorScheme.error)),
+      ],
+    ),
+    actions: [
+      button(
+        'Salvar atribuições',
+        saving ? null : save,
+        loading: saving,
+        primary: true,
       ),
     ],
   );

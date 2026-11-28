@@ -17,7 +17,6 @@ Future<bool?> uploadDialog(
   String? current, {
   Uint8List? bytes,
   String? filename,
-  List<Uint8List> originals = const [],
   ValueChanged<JsonMap>? onUploaded,
   String? suggestedType,
   bool fixedDestination = false,
@@ -42,7 +41,6 @@ Future<bool?> uploadDialog(
   return showDialog<bool>(
     context: c,
     builder: (_) => UploadForm(
-      originals: originals,
       onUploaded: onUploaded,
       suggestedType: suggestedType,
       fixedDestination: fixedDestination,
@@ -58,7 +56,6 @@ Future<bool?> uploadDialog(
 }
 
 class UploadForm extends StatefulWidget {
-  final List<Uint8List> originals;
   final ValueChanged<JsonMap>? onUploaded;
   final String? suggestedType, personName;
   final bool fixedDestination;
@@ -70,7 +67,6 @@ class UploadForm extends StatefulWidget {
   final String filename;
   const UploadForm({
     super.key,
-    this.originals = const [],
     this.onUploaded,
     this.suggestedType,
     this.personName,
@@ -91,7 +87,7 @@ class _UploadFormState extends State<UploadForm> {
   late final type = TextEditingController(
     text: widget.suggestedType ?? 'Outros documentos',
   );
-  late String? folder = widget.current ?? widget.folders.firstOrNull?['id'];
+  late String? folder = widget.current;
   bool busy = false;
   String? error;
   @override
@@ -119,11 +115,6 @@ class _UploadFormState extends State<UploadForm> {
               const SizedBox(height: 14),
             ],
             Text('${widget.filename} · ${size(widget.bytes.length)}'),
-            if (widget.originals.isNotEmpty)
-              Text(
-                '${widget.originals.length} imagens originais também serão preservadas nesta pasta.',
-                style: const TextStyle(fontSize: 12),
-              ),
             const SizedBox(height: 16),
             field('Nome', name),
             if (widget.documentTypes.isNotEmpty)
@@ -189,18 +180,6 @@ class _UploadFormState extends State<UploadForm> {
                   error = null;
                 });
                 try {
-                  for (var i = 0; i < widget.originals.length; i++) {
-                    await widget.api.upload(
-                      widget.originals[i],
-                      'Original ${i + 1} - ${name.text.replaceAll('.pdf', '')}.${widget.originals[i][0] == 137
-                          ? 'png'
-                          : widget.originals[i][0] == 255
-                          ? 'jpg'
-                          : 'webp'}',
-                      folder!,
-                      'Imagem original da digitalização',
-                    );
-                  }
                   final saved = await widget.api.upload(
                     widget.bytes,
                     name.text,

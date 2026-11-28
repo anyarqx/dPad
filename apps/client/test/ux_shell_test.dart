@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:forui/forui.dart';
+import 'package:dPad/shared/record_selection.dart';
 import 'package:dPad/shared/app_theme.dart';
 import 'package:dPad/shared/widgets.dart';
 import 'package:dPad/shared/section_tabs.dart';
@@ -90,6 +91,48 @@ void main() {
     },
   );
 
+  test('seleção por intervalo respeita a ordem visível', () {
+    final selection = RecordSelection();
+    addTearDown(selection.dispose);
+    const order = ['a', 'b', 'c', 'd', 'e'];
+    selection.toggle('d', order, range: false);
+    selection.toggle('b', order, range: true);
+    expect(selection.ids, {'b', 'c', 'd'});
+    selection.toggle('c', order, range: false);
+    expect(selection.ids, {'b', 'd'});
+    selection.clear();
+    expect(selection.ids, isEmpty);
+    expect(selection.anchor, isNull);
+  });
+
+  testWidgets(
+    'atalhos têm colunas e cabem em largura estreita com texto maior',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        shell(
+          Builder(
+            builder: (c) => TextButton(
+              onPressed: () => showShortcutTable(c, desktop: true),
+              child: const Text('Abrir ajuda'),
+            ),
+          ),
+          scale: 1.35,
+        ),
+      );
+      await tester.tap(find.text('Abrir ajuda'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Table), findsOneWidget);
+      expect(find.text('Tecla'), findsOneWidget);
+      expect(find.text('Ação'), findsOneWidget);
+      expect(find.text('F11'), findsOneWidget);
+      expect(tester.getTopLeft(find.byType(Table)).dx, greaterThan(16));
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('divisor pinta uma única linha física em escalas fracionárias', (
     tester,
   ) async {
@@ -190,6 +233,35 @@ void main() {
     },
   );
 
+  testWidgets('menu de seleção não acompanha a largura total do campo', (
+    tester,
+  ) async {
+    String? selected = 'anual';
+    await tester.pumpWidget(
+      shell(
+        StatefulBuilder(
+          builder: (c, set) => selector('Período', selected, const [
+            DropdownMenuItem(value: 'anual', child: Text('Anual')),
+            DropdownMenuItem(value: 'semestral', child: Text('Semestral')),
+          ], (value) => set(() => selected = value)),
+        ),
+        scale: 1.35,
+      ),
+    );
+    final control = find.byType(DropdownButton<String>);
+    expect(tester.getSize(control).width, greaterThan(500));
+    await tester.tap(control);
+    await tester.pumpAndSettle();
+    final item = find.widgetWithText(DropdownMenuItem<String>, 'Semestral');
+    expect(tester.getSize(item).width, lessThanOrEqualTo(420));
+    await tester.tap(
+      find.ancestor(of: item, matching: find.byType(InkWell)).last,
+    );
+    await tester.pumpAndSettle();
+    expect(selected, 'semestral');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'rótulo longo fica acima da borda e seleção dependente acompanha o valor',
     (tester) async {
@@ -254,10 +326,10 @@ void main() {
     await tester.tap(find.text('Servidor'));
     await tester.pumpAndSettle();
     expect(find.text('Aparência'), findsNothing);
-    expect(find.text('Conectar a um servidor…'), findsOneWidget);
+    expect(find.text('Conexão e hospedagem…'), findsOneWidget);
     await tester.tap(find.text('Configurações'));
     await tester.pumpAndSettle();
-    expect(find.text('Conectar a um servidor…'), findsNothing);
+    expect(find.text('Conexão e hospedagem…'), findsNothing);
     await tester.tap(find.text('Aparência'));
     await tester.pumpAndSettle();
     expect(softwareAction.value, SoftwareAction.appearance);
@@ -369,7 +441,9 @@ void main() {
     'data é digitada sem menus e mantém o formato ISO no contrato da API',
     (tester) async {
       final raw = TextEditingController(text: '2026-04-13');
-      await tester.pumpWidget(shell(field('Data (AAAA-MM-DD)', raw)));
+      await tester.pumpWidget(
+        shell(field('Data', raw, kind: FieldKind.isoDate)),
+      );
       final input = find.byType(EditableText);
       expect(tester.widget<EditableText>(input).controller.text, '13/04/2026');
       await tester.enterText(input, '20112026');
@@ -385,14 +459,10 @@ void main() {
     'uma única opção já definida é informação e não um seletor redundante',
     (tester) async {
       await tester.pumpWidget(
-        shell(
-          selector('Curso', 'a', const [
-            DropdownMenuItem(value: 'a', child: Text('Curso da turma')),
-          ], (_) => fail('Não há outra opção para selecionar.')),
-        ),
+        shell(readOnlyValue('Curso', const Text('Curso da turma'))),
       );
       expect(find.text('Curso da turma'), findsOneWidget);
-      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+      expect(find.byType(DropdownButton<String>), findsNothing);
     },
   );
   testWidgets(
@@ -414,7 +484,7 @@ void main() {
       expect(tester.getSize(find.byType(PageHeader)).width, 800);
       expect(
         tester.getTopLeft(find.byKey(const ValueKey('content-edge'))).dx,
-        24,
+        16,
       );
       expect(tester.takeException(), isNull);
     },

@@ -5,10 +5,11 @@ import 'package:path_provider/path_provider.dart';
 
 import 'local_server.dart';
 
-LocalServer? _server;
-bool get isHosting => _server?.running ?? false;
+final _host = LocalHost();
+bool get isHosting => _host.running;
+Uri? get hostedAddress => _host.address;
 bool get canHost => Platform.isLinux || Platform.isWindows;
-Future<void> host() async {
+Future<Uri> host({int port = 8080}) async {
   if (!Platform.isLinux && !Platform.isWindows) {
     throw UnsupportedError(
       'Neste dispositivo, conecte-se ao servidor da escola.',
@@ -50,14 +51,11 @@ Future<void> host() async {
       break;
     }
   }
-  if (_server == null ||
-      (!_server!.running && _server!.executable != executable)) {
-    _server = LocalServer(
-      executable: executable,
-      dataDirectory: p.join(data.path, 'papel-digital'),
-    );
-  }
-  await _server!.start();
+  return _host.start(
+    executable: executable,
+    dataDirectory: p.join(data.path, 'papel-digital'),
+    port: port,
+  );
 }
 
-Future<void> stopHost() async => _server?.stop();
+Future<void> stopHost() => _host.stop();

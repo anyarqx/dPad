@@ -1,10 +1,10 @@
-# Do Papel ao Digital
+# Do Papel Ao Digital
 
-Flutter, servidor Dart/Shelf, SQLite/Drift e arquivos locais. Uma pasta reúne a identificação e os documentos de um aluno; cursos, períodos, turmas, matrículas, diários e solicitações mantêm vínculos reais no servidor. A instalação começa sem alunos, cursos ou arquivos fictícios.
+Gestão de pastas de alunos, matrículas, documentos, solicitações e rotina acadêmica. O cliente Flutter usa a API de um servidor Dart com SQLite e armazenamento local dos arquivos.
 
 ## Executar
 
-Ambiente verificado: Flutter 3.47.5, Dart 3.13.4, Java 21 e Android SDK 36. Linux requer as dependências de desenvolvimento GTK do Flutter.
+Use Flutter 3.47 e Dart 3.13. O desktop Linux requer as dependências GTK do Flutter.
 
 ```bash
 cd apps/server
@@ -20,83 +20,46 @@ flutter pub get
 flutter run -d linux
 ```
 
-Na primeira conexão, crie o administrador no computador do servidor. Não existe senha padrão. Depois, em **Contas e acessos**, cadastre administração, secretaria, coordenação, professores, grêmio, alunos e responsáveis. Os dois últimos recebem vínculos explícitos com as pastas dos alunos. Contas podem ser desativadas, senhas redefinidas e sessões revogadas. O cliente solicita nova entrada ao ser reiniciado; não grava senhas nem tokens em preferências.
+Crie a primeira conta de administração no computador do servidor. A instalação começa vazia. Em **Contas e acessos**, gerencie os perfis e os vínculos de alunos e responsáveis. Na pasta do aluno, **Criar acesso** reaproveita o cadastro. A senha é escolhida durante a criação.
 
-O servidor escuta `0.0.0.0:8080` por padrão (LAN); o cliente local usa `127.0.0.1:8080`. `/health` verifica disponibilidade e informa os endereços da instalação. Aceita `--data`/`DPAD_DATA`, `--port`, `--host` e `--web`. Banco e documentos ficam em `<data>/database.sqlite` e `<data>/files/`, fora dos builds. Para restringir a esta máquina, use `--host 127.0.0.1` ou `DPAD_HOST=127.0.0.1`. Para dados institucionais, HTTPS, backup/restauração e revisão de acesso ainda são necessários.
+O servidor escuta em `0.0.0.0:8080`. Use `--host 127.0.0.1` para limitar à própria máquina e `--port` para alterar a porta. No cliente, **Servidor → Conexão e hospedagem** conecta a uma instalação ou inicia o servidor no desktop. Informe a porta no endereço, como `http://127.0.0.1:8090`. A rota `/health` verifica disponibilidade.
 
-## Organização e uso
+## Rotinas
 
-1. Crie **modelos de pasta**: documentos e informações exigidas, sem listas fixas aplicadas a todos. O JSON `assets/templates/pasta-escolar.json` é um exemplo importável e editável, baseado na lista informada pela escola.
-2. Cadastre **curso e modalidade**, opcionalmente com modelo documental padrão.
-3. Cadastre **turmas** por curso, ano, período, etapa, turno e capacidade. A lateral agrupa curso → período → turma, com filtro de ano.
-4. Cadastre o aluno selecionando uma turma existente e o modelo. A pasta e a matrícula em análise são criadas na mesma transação.
-5. Receba e confira documentos. A ativação considera dados exigidos, documentos e vagas; uma exceção documental exige justificativa registrada. Mudar turma, transferir, cancelar e encerrar o período preserva histórico. A renovação abre matrícula em outro período, reutilizando a pasta. Exigências adicionais do modelo do curso são somadas à pasta ao abrir outra matrícula.
-6. Em **Organização acadêmica**, cadastre disciplinas e componentes por curso/fase, com carga horária e duração da hora-aula. Complete os dados profissionais dos professores (a conta é criada pela administração). Configure **diários** selecionando componente da matriz e docente. Registre conteúdo, quantidade de aulas e frequência; envie para revisão e publique. Alunos e responsáveis veem somente os próprios registros de frequência publicados. Em **Avaliações e notas**, lance notas da turma, envie e publique após conferência. **Boletim e frequência**, na pasta do aluno, apresenta somente os registros publicados e permite exportar PDF. Ausência e dispensa não viram zero automaticamente.
-7. Em **Horários**, adicione blocos com vigência e sala; conflitos de turma, professor e sala são bloqueados. Na pasta do aluno, **Boletim e frequência → Frequência** permite justificar uma falta publicada; a coordenação analisa na turma. Deferir preserva a falta, sem abono automático.
-8. Solicitações podem ser abertas na pasta, com anexos existentes ou importados. O setor inicia, solicita complemento, encaminha e conclui com histórico. Reenvios da mesma operação não duplicam pedidos.
+- **Pastas de alunos** reúne dados, documentos, matrículas, solicitações e boletim por pessoa. A matrícula é opcional no cadastro e usa uma turma existente. Defina as exigências em **Modelos de pasta**. O arquivo `assets/templates/pasta-escolar.json` é um exemplo editável.
+- **Cursos e turmas** reúne matrículas e horários. A matriz por fase, em **Org. Acadêmica**, gera os diários. No diário, **Docentes** permite atribuir professores por vigência. A grade semanal usa modelos de períodos e verifica conflitos de turma, professor e sala na API.
+- **Diários** reúne frequência mensal, avaliações e notas. O boletim mostra os registros publicados. As faltas podem ser registradas por dia ou por aula. A análise da justificativa preserva a falta registrada.
+- **Arquivo de documentos** organiza as pastas administrativas. Importe PDF, JPEG, PNG ou WebP de até 30 MB. A digitalização recorta, gira e ordena imagens num único PDF. Use seleção múltipla para mover, conferir, associar ou excluir.
+- **Solicitações** acompanha pedidos por protocolo. **Atendimento** organiza início, encaminhamento, complemento, resposta e conclusão.
+- **Ajuda → Atalhos de teclado** mostra a tabela de teclas e ações. No desktop, F11 alterna tela cheia.
 
-PDF, JPEG, PNG e WebP têm limite de 30 MB. A digitalização recorta, gira e organiza imagens em PDF e preserva os originais. PDFs abrem em visualizador real. Modelos alterados valem para novos cadastros; na pasta existente, **Aplicar modelo** soma exigências sem apagar arquivos ou dados. O **Arquivo de documentos** permite navegar, importar e organizar documentos administrativos em pastas e subpastas.
+## Dados e manutenção
 
-Os menus **Configurações** e **Servidor** ficam no topo. Avisos ficam no ícone **Atividade**, sem Snackbar ou faixa dedicada. Campos têm ajuda no ícone “i”; datas inserem as barras durante a digitação. Municípios/UF usam catálogo local da [API do IBGE](https://servicodados.ibge.gov.br/api/docs/localidades), pesquisável sem internet; atualize o recurso com `python3 tools/update-localities.py`. A lateral pode ser recolhida; a largura do painel de detalhes é ajustável e salva.
+Banco, documentos e backups ficam em `database.sqlite`, `files/` e `backups/` no diretório indicado por `--data`. Em **Servidor → Manutenção**, a administração define a instituição e o modelo padrão, gera backups e confere o conteúdo antes de restaurar. A troca conserva uma cópia da instalação anterior.
 
-## Builds
-
-```bash
-./tools/build-linux.sh
-apps/client/build/linux/x64/release/bundle/papel_digital
-```
-
-Distribua o `bundle` inteiro. **Hospedar nesta máquina** utiliza o mesmo servidor do modo independente e encerra o processo controlado ao fechar a janela. A logo original fica em `assets/logo.svg`; os arquivos derivados do cliente e os ícones podem ser atualizados com `python3 tools/generate-icons.py` (rsvg-convert e Pillow).
-
-Servidor independente:
+Para uma instância isolada com dados fictícios:
 
 ```bash
 cd apps/server
-dart build cli --target bin/dPad_server.dart -o build/server
-build/server/bundle/bin/dPad_server --data ../../data
+dart run bin/dPad_server.dart --data ../../data --test --port 8081
 ```
 
-Preserve `bundle/bin` e `bundle/lib`, incluindo os assets nativos do SQLite. Windows usa `tools/build-windows.ps1` em PowerShell, Flutter e Visual Studio com C++. O script verifica o servidor empacotado e gera `dist/DoPapelAoDigital-windows-x64.zip`, com o .exe, DLLs, assets e servidor. O workflow manual `.github/workflows/build-windows.yml` prepara um runner Windows; não foi executado neste ambiente Linux.
+Conecte em `http://127.0.0.1:8081`. Os dados ficam em `data.test` e podem ser repostos em **Servidor → Manutenção → Restaurar dados fictícios**. Esse ambiente usa perfis de teste. A instalação normal exige conta e senha.
 
-Android, como cliente do servidor:
+O esquema SQLite é 1. Para recriar **somente** um banco de desenvolvimento descartável, pare o servidor e use `--reset-data RECRIAR` com o diretório escolhido. A operação apaga o banco e os documentos desse diretório.
 
-```bash
-./tools/build-android.sh debug
-```
+## Empacotar
 
-APK: `apps/client/build/app/outputs/flutter-apk/app-debug.apk`. Selecione a conexão da escola; `localhost` no celular é o próprio aparelho. No emulador Android, `10.0.2.2` aponta para o computador hospedeiro. HTTP é permitido somente na versão de laboratório/debug. Release exige HTTPS e assinatura própria em `apps/client/android/key.properties`; esse arquivo e as chaves não entram no Git. O aplicativo não hospeda o servidor no Android.
+- **Linux** — `bash tools/build/linux.sh`. Distribua o bundle com o servidor.
+- **Windows** — `tools/build/windows.ps1` em PowerShell com Flutter e Visual Studio C++. O ZIP inclui executável, DLLs, assets e servidor.
+- **Android** — `bash tools/build/android.sh arm64 debug`. Conecte pelo endereço LAN do servidor. O emulador acessa o computador hospedeiro em `10.0.2.2`. O APK de release exige assinatura e HTTPS.
+- **Web** — em `apps/client`, execute `flutter build web --no-web-resources-cdn`. Inicie o servidor com `--web ../client/build/web` para servir interface e API na mesma origem. Outra origem exige configurar `--cors-origin`.
 
-Web: em `apps/client`, execute `flutter build web`. Sirva com `--web ../client/build/web` no servidor. A mesma origem é o padrão; desenvolvimento em outra origem requer `--cors-origin` explícito.
+Para compilar só o servidor, execute `dart build cli --target bin/dPad_server.dart -o build/server` em `apps/server`. Execute `build/server/bundle/bin/dPad_server` e preserve as pastas `bin` e `lib` do bundle.
 
-## Testes
+## Verificar
 
-```bash
-cd apps/server
-dart format --output=none --set-exit-if-changed lib bin test
-dart analyze
-dart test --concurrency=2
-cd ../client
-flutter analyze
-flutter test
-```
-
-`python3 tools/test-client.py` na raiz também executa as telas Linux com preferências reais isoladas. `DPAD_SCREENSHOT_DIR=/tmp/dpad-review python3 tools/test-client.py` gera capturas. Os testes usam HTTP, SQLite e arquivos reais; incluem contas, autorização, curso/turma, modelos, matrículas, diário, notas, publicação, justificativas, horários, solicitações, PDF, temas, escalas fracionárias e regressão de `Overlay` da janela.
-
-Após os builds, `python3 tools/smoke-server.py` verifica o servidor compilado, o cliente Web e a persistência após reinício.
-
-## Recriar dados de desenvolvimento
-
-O esquema permanece inicial, sem migrações incrementais. Quando houver incompatibilidade, pare a instalação e recrie **explicitamente** o diretório desejado:
-
-```bash
-cd apps/server
-dart run bin/dPad_server.dart --data ../../data --reset-data RECRIAR
-```
-
-Isso apaga banco e documentos desse diretório. Um reinício comum não apaga nada. Depois de alterar `schema.drift`, regenere com `dart run build_runner build`.
-
-`--demo`, somente em diretório separado com dados fictícios, mantém os perfis de demonstração usados pelos testes antigos. Esse modo aceita troca de perfil e não deve ser confundido com autenticação. O modo normal exige conta e senha; o cabeçalho `X-Profile` não concede acesso.
-
-Pesquisa sobre EETEPA Santarém, cronograma, docentes públicos e decisões de UX: [docs/contexto-escolar.md](docs/contexto-escolar.md). Limites e próximos passos: [docs/next-cycle.md](docs/next-cycle.md). O boletim é de acompanhamento, sem cálculo institucional de aprovação/recuperação.
-
-Revisão visual, diagnóstico e sequência da próxima etapa: [revisao-ux-ui-2026-11.md](docs/revisao-ux-ui-2026-11.md).
+- **Servidor** — em `apps/server`, execute `dart analyze` e `dart test`.
+- **Cliente** — em `apps/client`, execute `flutter analyze`. Na raiz, `python3 tools/test-client.py` executa a suíte com servidores e preferências temporários no Linux. Defina `DPAD_SCREENSHOT_DIR` para registrar capturas.
+- **Integração** — após os builds do servidor e da Web, execute `python3 tools/smoke-server.py`. A verificação inclui restauração, isolamento dos dados fictícios e persistência.
+- **Latência local** — em `apps/server`, execute `dart run bin/benchmark.dart`.

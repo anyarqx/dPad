@@ -70,7 +70,7 @@ class TemplatesPage extends StatelessWidget {
       }
       await edit(c, imported: data);
     } catch (e) {
-      if (c.mounted) feedback(c, e);
+      if (c.mounted) feedbackError(c, e);
     }
   }
 
@@ -197,7 +197,6 @@ class _TemplateFormState extends State<_TemplateForm> {
               'phone': 'Telefone',
               'email': 'E-mail',
               'sex': 'Sexo informado',
-              'social_name': 'Nome social',
               'birthplace': 'Naturalidade',
               'nationality': 'Nacionalidade',
               'parentage': 'Filiação',
@@ -254,7 +253,9 @@ class _TemplateFormState extends State<_TemplateForm> {
                       'name': name.text,
                       'documents': lines(documents),
                       'extra_fields': lines(fields),
-                      'required_identity': identity.toList(),
+                      'required_identity': identity
+                          .where((v) => v != 'social_name')
+                          .toList(),
                       'archived': archived ? 1 : 0,
                       if (widget.template != null)
                         'revision': widget.template!['revision'],

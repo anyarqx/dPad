@@ -25,7 +25,7 @@ class PageHeader extends StatelessWidget {
             : MediaQuery.sizeOf(c).width < 600
             ? 16
             : 24,
-        vertical: section ? 12 : 16,
+        vertical: section ? 6 : 10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -33,14 +33,14 @@ class PageHeader extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: section ? 18 : 24,
+              fontSize: section ? 16 : 20,
               height: 1.25,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (subtitle != null)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 4),
               child: Text(
                 subtitle!,
                 style: TextStyle(
@@ -51,10 +51,10 @@ class PageHeader extends StatelessWidget {
               ),
             ),
           if (actions.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: actions,
             ),
@@ -86,9 +86,9 @@ class PageLayout extends StatelessWidget {
             if (headerPrefix.isNotEmpty)
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                  MediaQuery.sizeOf(c).width < 600 ? 16 : 24,
+                  MediaQuery.sizeOf(c).width < 600 ? 12 : 16,
                   8,
-                  MediaQuery.sizeOf(c).width < 600 ? 16 : 24,
+                  MediaQuery.sizeOf(c).width < 600 ? 12 : 16,
                   0,
                 ),
                 child: Column(
@@ -102,7 +102,7 @@ class PageLayout extends StatelessWidget {
       ),
       Expanded(
         child: Padding(
-          padding: EdgeInsets.all(MediaQuery.sizeOf(c).width < 600 ? 16 : 24),
+          padding: EdgeInsets.all(MediaQuery.sizeOf(c).width < 600 ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children,

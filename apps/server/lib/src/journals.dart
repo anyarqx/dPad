@@ -8,15 +8,25 @@ class Journals {
   bool reviewer(Map u) => s.admin(u) || u['department'] == 'coordenacao';
   bool editor(Map u, Map journal) =>
       reviewer(u) ||
-      (u['role'] == 'professor' && journal['teacher'] == u['id']);
+      (u['role'] == 'professor' &&
+          (journal['teachers'] as List).any((t) => t['teacher'] == u['id']));
+  String teacherNames(Iterable teachers) {
+    final names = teachers.map((t) => t['name'] as String).toSet();
+    return names.isEmpty ? 'Não atribuído' : names.join(', ');
+  }
+
   Future<Map<String, dynamic>> journal(Map u, String id) async {
     final j = await s.one('journals', id);
+    j['teachers'] = await s.db.rows(
+      'SELECT t.*,u.name FROM journal_teachers t JOIN users u ON u.id=t.teacher WHERE t.journal=? ORDER BY t.valid_from,u.name',
+      [id],
+    );
     if (!await school.canReadClass(
       u,
       await s.one('class_groups', j['class_group']),
     ))
       throw ApiError(403, 'Diário sem permissão.');
-    if (u['role'] == 'professor' && j['teacher'] != u['id'])
+    if (u['role'] == 'professor' && !editor(u, j))
       throw ApiError(403, 'Este diário está atribuído a outro docente.');
     return j;
   }
@@ -24,46 +34,32 @@ class Journals {
   Future<List<Map<String, dynamic>>> list(Map u, String group) async {
     if (!await school.canReadClass(u, await s.one('class_groups', group)))
       throw ApiError(403, 'Turma sem permissão.');
-    return (await s.db.rows(
-          'SELECT j.*,u.name AS teacher_name,c.phase,c.hours,c.lesson_minutes FROM journals j JOIN users u ON u.id=j.teacher LEFT JOIN course_components c ON c.id=j.component WHERE j.class_group=? ORDER BY j.subject COLLATE NOCASE',
-          [group],
-        ))
-        .where((j) => u['role'] != 'professor' || j['teacher'] == u['id'])
-        .toList();
-  }
-
-  Future<String> create(Map u, Map b) async {
-    if (!s.manageStudents(u) && !reviewer(u))
-      throw ApiError(
-        403,
-        'Somente secretaria e coordenação configuram diários.',
-      );
-    final g = await s.one('class_groups', s.text(b, 'class_group'));
-    if (g['archived'] == 1) throw ApiError(409, 'A turma está arquivada.');
-    final teacher = await s.one('users', s.text(b, 'teacher'));
-    final active = await s.db.rows(
-      'SELECT user FROM credentials WHERE user=? AND enabled=1',
-      [teacher['id']],
+    final rows = await s.db.rows(
+      "SELECT j.*,c.phase,c.hours,c.lesson_minutes FROM journals j JOIN course_components c ON c.id=j.component WHERE j.class_group=? ORDER BY c.phase,j.subject COLLATE NOCASE",
+      [group],
     );
-    if (teacher['role'] != 'professor' || active.isEmpty)
-      throw ApiError(400, 'Selecione uma conta ativa de professor.');
-    final componentId = b['component'];
-    if (componentId == null && !s.demo)
-      throw ApiError(400, 'Selecione um componente da matriz do curso.');
-    final component = componentId == null
-        ? null
-        : await s.one('course_components', componentId);
-    if (component != null && component['course'] != g['course'])
-      throw ApiError(400, 'O componente pertence a outro curso.');
-    final subject = component == null
-        ? s.text(b, 'subject', max: 160)
-        : (await s.one('subjects', component['subject']))['name'];
-    final id = uuid.v4();
-    await s.db.exec(
-      'INSERT INTO journals(id,class_group,subject,teacher,component) VALUES(?,?,?,?,?)',
-      [id, g['id'], subject, teacher['id'], componentId],
+    final assignments = await s.db.rows(
+      'SELECT t.*,u.name FROM journal_teachers t JOIN users u ON u.id=t.teacher JOIN journals j ON j.id=t.journal WHERE j.class_group=?',
+      [group],
     );
-    return id;
+    final byJournal = <String, List<Map<String, dynamic>>>{};
+    for (final assignment in assignments) {
+      byJournal.putIfAbsent(assignment['journal'], () => []).add(assignment);
+    }
+    final visible = <Map<String, dynamic>>[];
+    for (final j in rows) {
+      final teachers = byJournal[j['id']] ?? [];
+      if (u['role'] == 'professor' &&
+          !teachers.any((t) => t['teacher'] == u['id'])) {
+        continue;
+      }
+      visible.add({
+        ...j,
+        'teachers': teachers,
+        'teacher_name': teacherNames(teachers),
+      });
+    }
+    return visible;
   }
 
   Future<List<Map<String, dynamic>>> roster(Map j) => s.db.rows(
@@ -100,10 +96,9 @@ class Journals {
     }
     return {
       ...j,
-      'teacher_name': (await s.one('users', j['teacher']))['name'],
+      'teacher_name': teacherNames(j['teachers']),
       'class_name': (await s.one('class_groups', j['class_group']))['name'],
-      if (j['component'] != null)
-        'component_info': await s.one('course_components', j['component']),
+      'component_info': await s.one('course_components', j['component']),
       'published_units': (await s.db.rows(
         "SELECT coalesce(sum(units),0) AS n FROM lessons WHERE journal=? AND state='Publicado'",
         [id],
@@ -145,6 +140,14 @@ class Journals {
         400,
         'Use uma data válida, já ocorrida e dentro do ano letivo.',
       );
+    if (u['role'] == 'professor' &&
+        !(j['teachers'] as List).any(
+          (t) =>
+              t['teacher'] == u['id'] &&
+              t['valid_from'].compareTo(date) <= 0 &&
+              t['valid_to'].compareTo(date) >= 0,
+        ))
+      throw ApiError(403, 'A data está fora da sua atribuição neste diário.');
     final units = school.integer(b, 'units', 1, 20),
         content = s.text(b, 'content', max: 5000);
     final attendance = b['attendance'];
@@ -187,6 +190,20 @@ class Journals {
           400,
           'Informe a frequência de todos os alunos da lista, sem incluir alunos de outra turma.',
         );
+      final mode = old?['attendance_mode'] ?? group['attendance_mode'];
+      final maximum = mode == 'day' ? 1 : units;
+      for (final a in attendance) {
+        final count = a.containsKey('absences') && a['absences'] != null
+            ? a['absences']
+            : (a['status'] == 'Presente' ? 0 : maximum);
+        if (count is! int ||
+            count < 0 ||
+            count > maximum ||
+            (a['status'] == 'Presente' && count != 0) ||
+            (a['status'] != 'Presente' && count == 0))
+          throw ApiError(400, 'Quantidade de faltas inválida para a aula.');
+        a['absences'] = count;
+      }
       final created = id ?? uuid.v4();
       if (old == null) {
         await s.db.exec(
@@ -199,19 +216,36 @@ class Journals {
           [date, units, content, now(), id],
         );
       }
+      await s.db.exec('UPDATE lessons SET attendance_mode=? WHERE id=?', [
+        mode,
+        created,
+      ]);
       for (final a in attendance) {
         final accepted = await s.db.rows(
           "SELECT id FROM absence_justifications WHERE lesson=? AND enrollment=? AND state='Deferida'",
           [created, a['enrollment']],
         );
-        if (accepted.isNotEmpty && a['status'] != 'Justificada')
+        if (accepted.isNotEmpty &&
+            (a['status'] != 'Justificada' ||
+                (old != null &&
+                    (await s.db.rows(
+                      'SELECT absences,status FROM attendance WHERE lesson=? AND enrollment=?',
+                      [created, a['enrollment']],
+                    )).any(
+                      (previous) =>
+                          (previous['absences'] ??
+                              (old['attendance_mode'] == 'day'
+                                  ? 1
+                                  : old['units'])) !=
+                          a['absences'],
+                    ))))
           throw ApiError(
             409,
             'Uma justificativa deferida impede apagar esta falta justificada.',
           );
         await s.db.exec(
-          'INSERT INTO attendance VALUES(?,?,?) ON CONFLICT(lesson,enrollment) DO UPDATE SET status=excluded.status',
-          [created, a['enrollment'], a['status']],
+          'INSERT INTO attendance(lesson,enrollment,status,absences) VALUES(?,?,?,?) ON CONFLICT(lesson,enrollment) DO UPDATE SET status=excluded.status,absences=excluded.absences',
+          [created, a['enrollment'], a['status'], a['absences']],
         );
       }
       await event(

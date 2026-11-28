@@ -38,10 +38,8 @@ class _EnrollmentForm extends StatefulWidget {
 }
 
 class _EnrollmentFormState extends State<_EnrollmentForm> {
-  late String? student = widget.student ?? widget.students.firstOrNull?['id'];
-  late String? group =
-      widget.classGroup ??
-      widget.groups.where((g) => g['archived'] == 0).firstOrNull?['id'];
+  late String? student = widget.student;
+  late String? group = widget.classGroup;
   bool busy = false;
   String? error;
   @override
@@ -211,7 +209,6 @@ class _EnrollmentPanelState extends State<EnrollmentPanel> {
               g['id'] != e['class_group'],
         )
         .toList();
-    target = groups.firstOrNull?['id'];
     final saved = await showEditorDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(

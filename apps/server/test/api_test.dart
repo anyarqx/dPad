@@ -21,7 +21,7 @@ void main() {
     final files = Directory('${dir.path}/files');
     await files.create();
     store = Store(db, files);
-    await store.seed(demo: true);
+    await store.seed(test: true);
     server = await io.serve(buildHandler(store), '127.0.0.1', 0);
     base = 'http://127.0.0.1:${server.port}/api/v1';
   });
@@ -51,6 +51,36 @@ void main() {
     expect(r.statusCode, 201);
     return jsonDecode(r.body);
   }
+
+  test('a primeira abertura do cliente encontra o perfil de testes', () async {
+    final response = await call('GET', 'bootstrap', user: 'local');
+    expect(response.statusCode, 200, reason: response.body);
+    final session = jsonDecode(response.body)['session'];
+    expect(session['test'], isTrue);
+    expect(session['user']['role'], 'admin');
+    expect((await call('GET', 'folders', user: 'local')).statusCode, 401);
+    expect(
+      (await call('GET', 'bootstrap', user: 'inexistente')).statusCode,
+      401,
+    );
+  });
+
+  test(
+    'contas e manutenção do ambiente de testes exigem administração',
+    () async {
+      expect((await call('GET', 'accounts')).statusCode, 403);
+      expect((await call('GET', 'maintenance/backups')).statusCode, 403);
+      final response = await call('GET', 'accounts', user: 'admin');
+      expect(response.statusCode, 200, reason: response.body);
+      final rows = jsonDecode(response.body) as List;
+      expect(rows.any((row) => row['id'] == 'secretaria'), isTrue);
+      expect(rows.every((row) => row['login'] == null), isTrue);
+      expect(
+        (await call('GET', 'maintenance/backups', user: 'admin')).statusCode,
+        200,
+      );
+    },
+  );
 
   test(
     'pastas: criação, conflito, mover, ciclo, excluir vazia e revisão',
@@ -133,13 +163,13 @@ void main() {
     await db.close();
     db = Database(File('${dir.path}/db.sqlite'));
     store = Store(db, store.files);
-    await store.seed(demo: true);
+    await store.seed(test: true);
     server = await io.serve(buildHandler(store), '127.0.0.1', 0);
     base = 'http://127.0.0.1:${server.port}/api/v1';
-    expect(
-      (jsonDecode((await call('GET', 'documents')).body) as List).length,
-      1,
-    );
+    final documents = jsonDecode((await call('GET', 'documents')).body) as List;
+    expect(documents.map((row) => row['name']), [
+      'Requerimento demonstrativo.pdf',
+    ]);
     expect(
       (await call('GET', 'documents/${d['id']}/content')).bodyBytes,
       r.bodyBytes,
@@ -354,9 +384,13 @@ void main() {
       )).statusCode,
       200,
     );
+    final documents = jsonDecode((await call('GET', 'documents')).body) as List;
     expect(
-      (jsonDecode((await call('GET', 'documents')).body) as List).length,
-      1,
+      documents.map((row) => row['name']),
+      containsAll([
+        'Requerimento demonstrativo.pdf',
+        'Identificação de teste.pdf',
+      ]),
     );
   });
   test('conferência de anexo exige atendente e revisão atual', () async {

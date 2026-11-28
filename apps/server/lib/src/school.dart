@@ -63,7 +63,7 @@ class School {
         u['department'] == 'coordenacao' ||
         (u['role'] == 'professor' &&
             (await s.db.rows(
-              'SELECT id FROM journals WHERE class_group=? AND teacher=?',
+              'SELECT j.id FROM journals j JOIN journal_teachers t ON t.journal=j.id WHERE j.class_group=? AND t.teacher=?',
               [group['id'], u['id']],
             )).isNotEmpty))
       return true;
@@ -75,36 +75,67 @@ class School {
   }
 
   Future<List<Map<String, dynamic>>> classes(Map u) async {
-    final groups = await s.db.rows(
-      "SELECT g.*,c.name AS course_name,c.modality,(SELECT count(*) FROM enrollments e WHERE e.class_group=g.id AND e.state='Ativa') AS active_count,(SELECT count(*) FROM enrollments e WHERE e.class_group=g.id AND e.state='Em análise') AS pending_count FROM class_groups g JOIN courses c ON c.id=g.course ORDER BY g.school_year DESC,c.name COLLATE NOCASE,g.period_label,g.name COLLATE NOCASE",
+    final staff = s.manageStudents(u) || u['department'] == 'coordenacao';
+    return s.db.rows(
+      """SELECT g.*,c.name AS course_name,c.modality,
+      (SELECT count(*) FROM enrollments e WHERE e.class_group=g.id AND e.state='Ativa') AS active_count,
+      (SELECT count(*) FROM enrollments e WHERE e.class_group=g.id AND e.state='Em análise') AS pending_count
+      FROM class_groups g JOIN courses c ON c.id=g.course
+      WHERE ?=1 OR EXISTS(SELECT 1 FROM enrollments e JOIN student_access a ON a.student=e.student WHERE e.class_group=g.id AND a.user=?)
+      OR (?='professor' AND EXISTS(SELECT 1 FROM journals j JOIN journal_teachers t ON t.journal=j.id WHERE j.class_group=g.id AND t.teacher=?))
+      ORDER BY g.school_year DESC,c.name COLLATE NOCASE,g.period_label,g.name COLLATE NOCASE""",
+      [staff ? 1 : 0, u['id'], u['role'], u['id']],
     );
-    final result = <Map<String, dynamic>>[];
-    for (final g in groups) {
-      if (await canReadClass(u, g)) result.add(g);
-    }
-    return result;
   }
 
   Future<String> createClass(Map u, Map b) async {
     manage(u);
     final id = uuid.v4();
     final fields = await classFields(b);
-    await s.db.exec(
-      'INSERT INTO class_groups(id,course,name,school_year,period_label,grade,shift,capacity,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)',
-      [
-        id,
-        fields['course'],
-        fields['name'],
-        fields['school_year'],
-        fields['period_label'],
-        fields['grade'],
-        fields['shift'],
-        fields['capacity'],
-        now(),
-        now(),
-      ],
-    );
+    await s.db.transaction(() async {
+      await s.db.exec(
+        'INSERT INTO class_groups(id,course,name,school_year,period_label,grade,shift,capacity,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)',
+        [
+          id,
+          fields['course'],
+          fields['name'],
+          fields['school_year'],
+          fields['period_label'],
+          fields['grade'],
+          fields['shift'],
+          fields['capacity'],
+          now(),
+          now(),
+        ],
+      );
+      final mode = b['attendance_mode'] ?? 'lesson';
+      if (!['lesson', 'day'].contains(mode))
+        throw ApiError(400, 'Critério de frequência inválido.');
+      if (b['period_model'] != null) {
+        final model = await s.one('period_models', b['period_model']);
+        if (model['archived'] == 1)
+          throw ApiError(409, 'O modelo de períodos está arquivado.');
+      }
+      await s.db.exec(
+        'UPDATE class_groups SET attendance_mode=?,period_model=? WHERE id=?',
+        [mode, b['period_model'], id],
+      );
+      await syncMatrix(id);
+    });
     return id;
+  }
+
+  Future<void> syncMatrix(String group) async {
+    final g = await s.one('class_groups', group);
+    for (final c in await s.db.rows(
+      'SELECT c.id,s.name FROM course_components c JOIN subjects s ON s.id=c.subject WHERE c.course=? AND c.phase=? COLLATE NOCASE',
+      [g['course'], g['grade']],
+    )) {
+      await s.db.exec(
+        'INSERT OR IGNORE INTO journals(id,class_group,subject,component) VALUES(?,?,?,?)',
+        [uuid.v4(), group, c['name'], c['id']],
+      );
+    }
   }
 
   Future<Map<String, dynamic>> classFields(Map b) async {
@@ -157,8 +188,11 @@ class School {
           409,
           'Encerre ou transfira as matrículas antes de arquivar a turma.',
         );
+      final mode = b['attendance_mode'] ?? old['attendance_mode'];
+      if (!['lesson', 'day'].contains(mode))
+        throw ApiError(400, 'Critério de frequência inválido.');
       await s.db.exec(
-        'UPDATE class_groups SET course=?,name=?,school_year=?,period_label=?,grade=?,shift=?,capacity=?,archived=?,updated=?,revision=revision+1 WHERE id=?',
+        'UPDATE class_groups SET course=?,name=?,school_year=?,period_label=?,grade=?,shift=?,capacity=?,attendance_mode=?,archived=?,updated=?,revision=revision+1 WHERE id=?',
         [
           f['course'],
           f['name'],
@@ -167,6 +201,7 @@ class School {
           f['grade'],
           f['shift'],
           f['capacity'],
+          mode,
           archived,
           now(),
           id,
@@ -188,7 +223,7 @@ class School {
         u['department'] == 'coordenacao' ||
         (u['role'] == 'professor' &&
             (await s.db.rows(
-              'SELECT id FROM journals WHERE class_group=? AND teacher=?',
+              'SELECT j.id FROM journals j JOIN journal_teachers t ON t.journal=j.id WHERE j.class_group=? AND t.teacher=?',
               [group['id'], u['id']],
             )).isNotEmpty);
     final linked = await s.linkedStudents(u);

@@ -97,7 +97,7 @@ class Auth {
           'A instalação já possui administrador. Entre com sua conta.',
         );
       await s.db.exec(
-        "UPDATE users SET name=?,role='admin',department='secretaria' WHERE id='local'",
+        "INSERT INTO users VALUES('local',?,'admin','secretaria')",
         [name],
       );
       await s.db.exec(
@@ -187,13 +187,16 @@ class Auth {
   Future<List<Map<String, dynamic>>> accounts(Map u) async {
     admin(u);
     final rows = await s.db.rows(
-      'SELECT u.*,c.login,c.enabled,c.revision FROM users u JOIN credentials c ON c.user=u.id ORDER BY u.name COLLATE NOCASE',
+      'SELECT u.*,c.login,c.enabled,c.revision FROM users u ${s.testMode ? 'LEFT JOIN' : 'JOIN'} credentials c ON c.user=u.id ORDER BY u.name COLLATE NOCASE',
     );
+    final links = <String, List<String>>{};
+    for (final link in await s.db.rows(
+      'SELECT user,student FROM student_access',
+    )) {
+      links.putIfAbsent(link['user'], () => []).add(link['student']);
+    }
     for (final row in rows) {
-      row['students'] = (await s.db.rows(
-        'SELECT student FROM student_access WHERE user=?',
-        [row['id']],
-      )).map((r) => r['student']).toList();
+      row['students'] = links[row['id']] ?? <String>[];
     }
     return rows;
   }

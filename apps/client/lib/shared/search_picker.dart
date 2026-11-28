@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:forui/forui.dart';
 
 import 'field_help.dart';
+import 'record_selection.dart';
 
 String normalizeSearch(String value) {
   var text = value.toLowerCase().trim();
@@ -66,12 +67,12 @@ class SearchPicker extends StatelessWidget {
         selected?.label ??
         (value?.isNotEmpty == true ? value! : hint ?? 'Selecionar');
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           fieldLabel(label, tip),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Semantics(
             label: label,
             value: text,
@@ -120,13 +121,18 @@ class _ChoiceDialog extends StatefulWidget {
   final String title;
   final List<SearchChoice> choices;
   final String? selected, hint;
-  final bool allowCustom;
+  final bool allowCustom, multiple;
+  final Set<String> initial;
+  final int maximum;
   const _ChoiceDialog({
     required this.title,
     required this.choices,
     this.selected,
     this.hint,
     required this.allowCustom,
+    this.multiple = false,
+    this.initial = const {},
+    this.maximum = 200,
   });
   @override
   State<_ChoiceDialog> createState() => _ChoiceDialogState();
@@ -134,6 +140,26 @@ class _ChoiceDialog extends StatefulWidget {
 
 class _ChoiceDialogState extends State<_ChoiceDialog> {
   final query = TextEditingController();
+  final selection = RecordSelection();
+  @override
+  void initState() {
+    super.initState();
+    selection.ids.addAll(widget.initial);
+    selection.addListener(changed);
+  }
+
+  void changed() {
+    if (mounted) setState(() {});
+  }
+
+  void choose(SearchChoice option) {
+    if (widget.multiple) {
+      selection.toggle(option.value, results.map((o) => o.value).toList());
+    } else {
+      Navigator.pop(context, option.value);
+    }
+  }
+
   String text = '';
   List<SearchChoice> get results {
     final terms = normalizeSearch(text)
@@ -147,101 +173,164 @@ class _ChoiceDialogState extends State<_ChoiceDialog> {
 
   @override
   void dispose() {
+    selection.dispose();
     query.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext c) {
-    final all = results, shown = all.take(80).toList();
-    return AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 560,
-        height: 420,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FTextField(
-              key: const ValueKey('picker-query'),
-              autofocus: true,
-              hint: widget.hint ?? 'Digite para buscar',
-              prefixBuilder: (c, s, v) => const Padding(
-                padding: EdgeInsets.only(left: 10),
-                child: Icon(FLucideIcons.search, size: 17),
-              ),
-              control: FTextFieldControl.managed(
-                controller: query,
-                onChange: (v) => setState(() => text = v.text),
-              ),
-              onSubmit: (_) {
-                if (shown.isNotEmpty) {
-                  Navigator.pop(c, shown.first.value);
-                } else if (widget.allowCustom && text.trim().isNotEmpty) {
-                  Navigator.pop(c, text.trim());
-                }
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(
-                all.length > shown.length
-                    ? '${all.length} opções; refine a busca para localizar.'
-                    : '${all.length} opção(ões)',
-                style: Theme.of(c).textTheme.bodySmall,
-              ),
-            ),
-            Expanded(
-              child: shown.isEmpty
-                  ? const Center(
-                      child: Text('Nenhum resultado. Confira a busca.'),
-                    )
-                  : ListView.builder(
-                      itemCount: shown.length,
-                      itemExtent: 62,
-                      itemBuilder: (c, i) {
-                        final option = shown[i];
-                        return ListTile(
-                          dense: true,
-                          title: Text(
-                            option.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: option.description.isEmpty
-                              ? null
-                              : Text(
-                                  option.description,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                          trailing: option.value == widget.selected
-                              ? const Icon(FLucideIcons.check, size: 18)
-                              : null,
-                          onTap: () => Navigator.pop(c, option.value),
-                        );
-                      },
+    final shown = results;
+    final preferredHeight = (144.0 + widget.choices.length * 48).clamp(
+      230.0,
+      560.0,
+    );
+    final height =
+        (MediaQuery.sizeOf(c).height - MediaQuery.viewInsetsOf(c).bottom - 32)
+            .clamp(180.0, preferredHeight);
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      child: SizedBox(
+        width: widget.multiple ? 480 : 440,
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: Theme.of(c).textTheme.titleMedium,
                     ),
-            ),
-            if (widget.allowCustom &&
-                text.trim().isNotEmpty &&
-                !widget.choices.any(
-                  (o) => normalizeSearch(o.value) == normalizeSearch(text),
-                ))
-              TextButton.icon(
-                onPressed: () => Navigator.pop(c, text.trim()),
-                icon: const Icon(FLucideIcons.plus, size: 16),
-                label: Text('Usar “${text.trim()}”'),
+                  ),
+                  IconButton(
+                    tooltip: 'Fechar',
+                    onPressed: () => Navigator.pop(c),
+                    icon: const Icon(FLucideIcons.x, size: 18),
+                  ),
+                ],
               ),
-          ],
+              FTextField(
+                key: const ValueKey('picker-query'),
+                autofocus: MediaQuery.sizeOf(c).width >= 600,
+                hint: widget.hint ?? 'Digite para buscar',
+                prefixBuilder: (c, s, v) => const Padding(
+                  padding: EdgeInsets.only(left: 10),
+                  child: Icon(FLucideIcons.search, size: 17),
+                ),
+                control: FTextFieldControl.managed(
+                  controller: query,
+                  onChange: (v) => setState(() => text = v.text),
+                ),
+                onSubmit: (_) {
+                  if (shown.length == 1 && !widget.multiple) {
+                    choose(shown.first);
+                  } else if (shown.isEmpty &&
+                      widget.allowCustom &&
+                      text.trim().isNotEmpty) {
+                    Navigator.pop(c, text.trim());
+                  }
+                },
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: shown.isEmpty
+                    ? const Center(
+                        child: Text('Nenhum resultado. Confira a busca.'),
+                      )
+                    : ListView.builder(
+                        itemCount: shown.length,
+
+                        itemBuilder: (c, i) {
+                          final option = shown[i];
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              option.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: option.description.isEmpty
+                                ? null
+                                : Text(
+                                    option.description,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                            leading: widget.multiple
+                                ? Checkbox(
+                                    value: selection.ids.contains(option.value),
+                                    onChanged: (_) => choose(option),
+                                  )
+                                : null,
+                            trailing:
+                                !widget.multiple &&
+                                    option.value == widget.selected
+                                ? const Icon(FLucideIcons.check, size: 18)
+                                : null,
+                            onTap: () => choose(option),
+                          );
+                        },
+                      ),
+              ),
+              if (widget.allowCustom &&
+                  text.trim().isNotEmpty &&
+                  !widget.choices.any(
+                    (o) => normalizeSearch(o.value) == normalizeSearch(text),
+                  ))
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(c, text.trim()),
+                  icon: const Icon(FLucideIcons.plus, size: 16),
+                  label: Text('Usar “${text.trim()}”'),
+                ),
+              if (widget.multiple)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        selection.ids.length > widget.maximum
+                            ? 'Selecione até ${widget.maximum}.'
+                            : '${selection.ids.length} selecionado(s)',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: selection.clear,
+                      child: const Text('Limpar'),
+                    ),
+                    FilledButton(
+                      onPressed: selection.ids.length > widget.maximum
+                          ? null
+                          : () =>
+                                Navigator.pop(c, Set<String>.of(selection.ids)),
+                      child: const Text('Confirmar'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c),
-          child: const Text('Cancelar'),
-        ),
-      ],
     );
   }
 }
+
+Future<Set<String>?> pickMany(
+  BuildContext context, {
+  required String title,
+  required List<SearchChoice> choices,
+  Set<String> selected = const {},
+  int maximum = 200,
+}) => showDialog<Set<String>>(
+  context: context,
+  builder: (_) => _ChoiceDialog(
+    title: title,
+    choices: choices,
+    allowCustom: false,
+    multiple: true,
+    initial: selected,
+    maximum: maximum,
+  ),
+);

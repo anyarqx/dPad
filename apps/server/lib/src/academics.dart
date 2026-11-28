@@ -44,7 +44,8 @@ class Academics {
         'SELECT c.*,s.name AS subject_name,s.code,k.name AS course_name FROM course_components c JOIN subjects s ON s.id=c.subject JOIN courses k ON k.id=c.course ORDER BY k.name,c.phase,s.name COLLATE NOCASE',
       ),
       'teachers': await s.db.rows(
-        "SELECT u.id,u.name,p.staff_code,p.qualification,p.phone,p.email,coalesce(p.revision,0) AS revision,(SELECT count(*) FROM journals j WHERE j.teacher=u.id) AS journals FROM users u JOIN credentials c ON c.user=u.id AND c.enabled=1 LEFT JOIN teacher_profiles p ON p.user=u.id WHERE u.role='professor' ORDER BY u.name COLLATE NOCASE",
+        "SELECT u.id,u.name,p.staff_code,p.qualification,p.phone,p.email,coalesce(p.revision,0) AS revision,(SELECT count(DISTINCT t.journal) FROM journal_teachers t WHERE t.teacher=u.id) AS journals FROM users u LEFT JOIN credentials c ON c.user=u.id LEFT JOIN teacher_profiles p ON p.user=u.id WHERE u.role='professor' AND coalesce(c.enabled,?)=1 ORDER BY u.name COLLATE NOCASE",
+        [s.testMode ? 1 : 0],
       ),
     };
   }
@@ -88,6 +89,7 @@ class Academics {
           'INSERT INTO course_components(id,course,phase,subject,hours,lesson_minutes) VALUES(?,?,?,?,?,?)',
           [created, course['id'], phase, subject['id'], hours, minutes],
         );
+        await prepareJournals(course['id'], phase);
         return created;
       }
       final old = await s.one('course_components', id);
@@ -104,8 +106,18 @@ class Academics {
         'UPDATE course_components SET course=?,phase=?,subject=?,hours=?,lesson_minutes=?,revision=revision+1 WHERE id=?',
         [course['id'], phase, subject['id'], hours, minutes, id],
       );
+      await prepareJournals(course['id'], phase);
       return id;
     });
+  }
+
+  Future<void> prepareJournals(String course, String phase) async {
+    for (final group in await s.db.rows(
+      'SELECT id FROM class_groups WHERE course=? AND grade=? COLLATE NOCASE AND archived=0',
+      [course, phase],
+    )) {
+      await school.syncMatrix(group['id']);
+    }
   }
 
   Future<void> saveTeacher(Map u, String id, Map b) async {
@@ -143,7 +155,7 @@ class Academics {
     if (!await school.canReadClass(u, await s.one('class_groups', group)))
       throw ApiError(403, 'Turma sem permissão.');
     return s.db.rows(
-      'SELECT t.*,j.subject,j.class_group,j.teacher,u.name AS teacher_name,c.phase FROM timetable_slots t JOIN journals j ON j.id=t.journal JOIN users u ON u.id=j.teacher LEFT JOIN course_components c ON c.id=j.component WHERE j.class_group=? ORDER BY t.weekday,t.start_minute,t.valid_from',
+      "SELECT t.*,j.subject,j.component,j.class_group,coalesce((SELECT group_concat(name,', ') FROM (SELECT DISTINCT u.name FROM journal_teachers a JOIN users u ON u.id=a.teacher WHERE a.journal=j.id AND a.valid_from<=t.valid_to AND a.valid_to>=t.valid_from ORDER BY u.name)),'Não atribuído') AS teacher_name,c.phase FROM timetable_slots t JOIN journals j ON j.id=t.journal JOIN course_components c ON c.id=j.component WHERE j.class_group=? ORDER BY t.weekday,t.start_minute,t.valid_from",
       [group],
     );
   }
@@ -178,37 +190,50 @@ class Academics {
         if (old['journal'] != j['id'])
           throw ApiError(400, 'O horário pertence a outro diário.');
       }
+      bool containsWeekday(String first, String last) {
+        final date = DateTime.parse(first);
+        return !date
+            .add(Duration(days: (weekday - date.weekday + 7) % 7))
+            .isAfter(DateTime.parse(last));
+      }
+
       final overlaps = await s.db.rows(
-        'SELECT t.id FROM timetable_slots t JOIN journals j ON j.id=t.journal WHERE t.id<>? AND t.weekday=? AND t.start_minute<? AND t.end_minute>? AND t.valid_from<=? AND t.valid_to>=? AND (j.class_group=? OR j.teacher=? OR (?<>? AND t.room=? COLLATE NOCASE))',
-        [
-          id ?? '',
-          weekday,
-          end,
-          start,
-          to,
-          from,
-          group['id'],
-          j['teacher'],
-          room,
-          '',
-          room,
-        ],
+        """SELECT t.*,j.class_group FROM timetable_slots t JOIN journals j ON j.id=t.journal
+        WHERE t.id<>? AND t.weekday=? AND t.start_minute<? AND t.end_minute>?
+          AND t.valid_from<=? AND t.valid_to>=?""",
+        [id ?? '', weekday, end, start, to, from],
       );
-      for (final hit in overlaps) {
-        final other = await s.one('timetable_slots', hit['id']);
+      for (final other in overlaps) {
         final lo = from.compareTo(other['valid_from']) > 0
             ? from
             : other['valid_from'] as String;
         final hi = to.compareTo(other['valid_to']) < 0
             ? to
             : other['valid_to'] as String;
-        final d = DateTime.parse(lo);
-        if (!d
-            .add(Duration(days: (weekday - d.weekday + 7) % 7))
-            .isAfter(DateTime.parse(hi))) {
+        if (!containsWeekday(lo, hi)) continue;
+        final sameClass = other['class_group'] == group['id'];
+        final sameRoom =
+            room.isNotEmpty &&
+            room.toLowerCase() == (other['room'] as String).toLowerCase();
+        final teacherRanges = sameClass || sameRoom
+            ? const <Map<String, dynamic>>[]
+            : await s.db.rows(
+                """SELECT max(a.valid_from,b.valid_from,?) AS first,min(a.valid_to,b.valid_to,?) AS last
+          FROM journal_teachers a JOIN journal_teachers b ON a.teacher=b.teacher
+          WHERE a.journal=? AND b.journal=?""",
+                [lo, hi, j['id'], other['journal']],
+              );
+        final sameTeacher = teacherRanges.any(
+          (r) => containsWeekday(r['first'], r['last']),
+        );
+        if (sameClass || sameRoom || sameTeacher) {
           throw ApiError(
             409,
-            'Conflito de horário: turma, professor ou sala já ocupados nessa vigência.',
+            'Conflito de horário: ${sameClass
+                ? 'turma'
+                : sameRoom
+                ? 'sala'
+                : 'professor'} já ocupado nesse período.',
           );
         }
       }
@@ -298,6 +323,15 @@ class Academics {
         400,
         'A avaliação deve ter ocorrido dentro do ano letivo.',
       );
+    if (u['role'] == 'professor' &&
+        !(j['teachers'] as List).any(
+          (t) =>
+              t['teacher'] == u['id'] &&
+              t['valid_from'].compareTo(held) <= 0 &&
+              t['valid_to'].compareTo(held) >= 0,
+        )) {
+      throw ApiError(403, 'A avaliação está fora da sua atribuição no diário.');
+    }
     final grades = b['grades'];
     if (grades is! List || grades.any((g) => g is! Map))
       throw ApiError(400, 'Lista de notas inválida.');
@@ -441,7 +475,7 @@ class Academics {
       [student],
     );
     final attendance = await s.db.rows(
-      "SELECT j.id AS journal,j.subject,l.date,l.units,a.status,a.enrollment,l.id AS lesson,c.name AS class_name,e.school_year FROM attendance a JOIN lessons l ON l.id=a.lesson JOIN journals j ON j.id=l.journal JOIN enrollments e ON e.id=a.enrollment JOIN class_groups c ON c.id=j.class_group WHERE e.student=? AND l.state='Publicado' ORDER BY l.date DESC",
+      "SELECT j.id AS journal,j.subject,l.date,l.units,l.attendance_mode,a.absences,a.status,a.enrollment,l.id AS lesson,c.name AS class_name,e.school_year FROM attendance a JOIN lessons l ON l.id=a.lesson JOIN journals j ON j.id=l.journal JOIN enrollments e ON e.id=a.enrollment JOIN class_groups c ON c.id=j.class_group WHERE e.student=? AND l.state='Publicado' ORDER BY l.date DESC",
       [student],
     );
     return {

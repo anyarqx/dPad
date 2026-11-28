@@ -127,3 +127,61 @@ class LocalServer {
     }
   }
 }
+
+class LocalHost {
+  LocalServer? _server;
+  Future<void> _queue = Future.value();
+  bool get running => _server?.running ?? false;
+  Uri? get address => running ? _server!.address : null;
+  Future<Uri> start({
+    required String executable,
+    required String dataDirectory,
+    required int port,
+  }) {
+    if (port < 1 || port > 65535) {
+      throw const FormatException('Informe uma porta entre 1 e 65535.');
+    }
+    final result = _queue.then((_) async {
+      final previous = _server;
+      if (previous != null &&
+          previous.port == port &&
+          previous.executable == executable &&
+          previous.dataDirectory == dataDirectory) {
+        await previous.start();
+        return previous.address;
+      }
+      final wasRunning = previous?.running ?? false;
+      if (previous != null) await previous.stop();
+      final next = LocalServer(
+        executable: executable,
+        dataDirectory: dataDirectory,
+        port: port,
+      );
+      try {
+        await next.start();
+        _server = next;
+        return next.address;
+      } catch (_) {
+        if (wasRunning) {
+          try {
+            await previous!.start();
+            _server = previous;
+          } catch (_) {
+            _server = null;
+          }
+        }
+        rethrow;
+      }
+    });
+    _queue = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  Future<void> stop() {
+    final result = _queue.then((_) async {
+      await _server?.stop();
+    });
+    _queue = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
+}

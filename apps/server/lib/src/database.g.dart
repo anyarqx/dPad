@@ -6060,6 +6060,471 @@ class CoursesCompanion extends UpdateCompanion<Course> {
   }
 }
 
+class PeriodModels extends Table with TableInfo<PeriodModels, PeriodModel> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  PeriodModels(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL PRIMARY KEY',
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _validFromMeta = const VerificationMeta(
+    'validFrom',
+  );
+  late final GeneratedColumn<String> validFrom = GeneratedColumn<String>(
+    'valid_from',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _validToMeta = const VerificationMeta(
+    'validTo',
+  );
+  late final GeneratedColumn<String> validTo = GeneratedColumn<String>(
+    'valid_to',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (valid_to >= valid_from)',
+  );
+  static const VerificationMeta _periodsJsonMeta = const VerificationMeta(
+    'periodsJson',
+  );
+  late final GeneratedColumn<String> periodsJson = GeneratedColumn<String>(
+    'periods_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
+  late final GeneratedColumn<int> archived = GeneratedColumn<int>(
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    validFrom,
+    validTo,
+    periodsJson,
+    archived,
+    revision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'period_models';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PeriodModel> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('valid_from')) {
+      context.handle(
+        _validFromMeta,
+        validFrom.isAcceptableOrUnknown(data['valid_from']!, _validFromMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_validFromMeta);
+    }
+    if (data.containsKey('valid_to')) {
+      context.handle(
+        _validToMeta,
+        validTo.isAcceptableOrUnknown(data['valid_to']!, _validToMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_validToMeta);
+    }
+    if (data.containsKey('periods_json')) {
+      context.handle(
+        _periodsJsonMeta,
+        periodsJson.isAcceptableOrUnknown(
+          data['periods_json']!,
+          _periodsJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_periodsJsonMeta);
+    }
+    if (data.containsKey('archived')) {
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PeriodModel map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PeriodModel(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      validFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valid_from'],
+      )!,
+      validTo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valid_to'],
+      )!,
+      periodsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}periods_json'],
+      )!,
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}archived'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  PeriodModels createAlias(String alias) {
+    return PeriodModels(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class PeriodModel extends DataClass implements Insertable<PeriodModel> {
+  final String id;
+  final String name;
+  final String validFrom;
+  final String validTo;
+  final String periodsJson;
+  final int archived;
+  final int revision;
+  const PeriodModel({
+    required this.id,
+    required this.name,
+    required this.validFrom,
+    required this.validTo,
+    required this.periodsJson,
+    required this.archived,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['valid_from'] = Variable<String>(validFrom);
+    map['valid_to'] = Variable<String>(validTo);
+    map['periods_json'] = Variable<String>(periodsJson);
+    map['archived'] = Variable<int>(archived);
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  PeriodModelsCompanion toCompanion(bool nullToAbsent) {
+    return PeriodModelsCompanion(
+      id: Value(id),
+      name: Value(name),
+      validFrom: Value(validFrom),
+      validTo: Value(validTo),
+      periodsJson: Value(periodsJson),
+      archived: Value(archived),
+      revision: Value(revision),
+    );
+  }
+
+  factory PeriodModel.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PeriodModel(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      validFrom: serializer.fromJson<String>(json['valid_from']),
+      validTo: serializer.fromJson<String>(json['valid_to']),
+      periodsJson: serializer.fromJson<String>(json['periods_json']),
+      archived: serializer.fromJson<int>(json['archived']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'valid_from': serializer.toJson<String>(validFrom),
+      'valid_to': serializer.toJson<String>(validTo),
+      'periods_json': serializer.toJson<String>(periodsJson),
+      'archived': serializer.toJson<int>(archived),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  PeriodModel copyWith({
+    String? id,
+    String? name,
+    String? validFrom,
+    String? validTo,
+    String? periodsJson,
+    int? archived,
+    int? revision,
+  }) => PeriodModel(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    validFrom: validFrom ?? this.validFrom,
+    validTo: validTo ?? this.validTo,
+    periodsJson: periodsJson ?? this.periodsJson,
+    archived: archived ?? this.archived,
+    revision: revision ?? this.revision,
+  );
+  PeriodModel copyWithCompanion(PeriodModelsCompanion data) {
+    return PeriodModel(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      validFrom: data.validFrom.present ? data.validFrom.value : this.validFrom,
+      validTo: data.validTo.present ? data.validTo.value : this.validTo,
+      periodsJson: data.periodsJson.present
+          ? data.periodsJson.value
+          : this.periodsJson,
+      archived: data.archived.present ? data.archived.value : this.archived,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PeriodModel(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('validTo: $validTo, ')
+          ..write('periodsJson: $periodsJson, ')
+          ..write('archived: $archived, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    validFrom,
+    validTo,
+    periodsJson,
+    archived,
+    revision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PeriodModel &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.validFrom == this.validFrom &&
+          other.validTo == this.validTo &&
+          other.periodsJson == this.periodsJson &&
+          other.archived == this.archived &&
+          other.revision == this.revision);
+}
+
+class PeriodModelsCompanion extends UpdateCompanion<PeriodModel> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> validFrom;
+  final Value<String> validTo;
+  final Value<String> periodsJson;
+  final Value<int> archived;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const PeriodModelsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.validFrom = const Value.absent(),
+    this.validTo = const Value.absent(),
+    this.periodsJson = const Value.absent(),
+    this.archived = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PeriodModelsCompanion.insert({
+    required String id,
+    required String name,
+    required String validFrom,
+    required String validTo,
+    required String periodsJson,
+    this.archived = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       validFrom = Value(validFrom),
+       validTo = Value(validTo),
+       periodsJson = Value(periodsJson);
+  static Insertable<PeriodModel> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? validFrom,
+    Expression<String>? validTo,
+    Expression<String>? periodsJson,
+    Expression<int>? archived,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (validFrom != null) 'valid_from': validFrom,
+      if (validTo != null) 'valid_to': validTo,
+      if (periodsJson != null) 'periods_json': periodsJson,
+      if (archived != null) 'archived': archived,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PeriodModelsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? validFrom,
+    Value<String>? validTo,
+    Value<String>? periodsJson,
+    Value<int>? archived,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return PeriodModelsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      validFrom: validFrom ?? this.validFrom,
+      validTo: validTo ?? this.validTo,
+      periodsJson: periodsJson ?? this.periodsJson,
+      archived: archived ?? this.archived,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (validFrom.present) {
+      map['valid_from'] = Variable<String>(validFrom.value);
+    }
+    if (validTo.present) {
+      map['valid_to'] = Variable<String>(validTo.value);
+    }
+    if (periodsJson.present) {
+      map['periods_json'] = Variable<String>(periodsJson.value);
+    }
+    if (archived.present) {
+      map['archived'] = Variable<int>(archived.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PeriodModelsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('validTo: $validTo, ')
+          ..write('periodsJson: $periodsJson, ')
+          ..write('archived: $archived, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class ClassGroups extends Table with TableInfo<ClassGroups, ClassGroup> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -6143,6 +6608,29 @@ class ClassGroups extends Table with TableInfo<ClassGroups, ClassGroup> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (capacity BETWEEN 1 AND 200)',
   );
+  static const VerificationMeta _attendanceModeMeta = const VerificationMeta(
+    'attendanceMode',
+  );
+  late final GeneratedColumn<String> attendanceMode = GeneratedColumn<String>(
+    'attendance_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'lesson\' CHECK (attendance_mode IN (\'lesson\', \'day\'))',
+    defaultValue: const CustomExpression('\'lesson\''),
+  );
+  static const VerificationMeta _periodModelMeta = const VerificationMeta(
+    'periodModel',
+  );
+  late final GeneratedColumn<String> periodModel = GeneratedColumn<String>(
+    'period_model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES period_models(id)',
+  );
   static const VerificationMeta _archivedMeta = const VerificationMeta(
     'archived',
   );
@@ -6199,6 +6687,8 @@ class ClassGroups extends Table with TableInfo<ClassGroups, ClassGroup> {
     grade,
     shift,
     capacity,
+    attendanceMode,
+    periodModel,
     archived,
     created,
     updated,
@@ -6280,6 +6770,24 @@ class ClassGroups extends Table with TableInfo<ClassGroups, ClassGroup> {
     } else if (isInserting) {
       context.missing(_capacityMeta);
     }
+    if (data.containsKey('attendance_mode')) {
+      context.handle(
+        _attendanceModeMeta,
+        attendanceMode.isAcceptableOrUnknown(
+          data['attendance_mode']!,
+          _attendanceModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('period_model')) {
+      context.handle(
+        _periodModelMeta,
+        periodModel.isAcceptableOrUnknown(
+          data['period_model']!,
+          _periodModelMeta,
+        ),
+      );
+    }
     if (data.containsKey('archived')) {
       context.handle(
         _archivedMeta,
@@ -6353,6 +6861,14 @@ class ClassGroups extends Table with TableInfo<ClassGroups, ClassGroup> {
         DriftSqlType.int,
         data['${effectivePrefix}capacity'],
       )!,
+      attendanceMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attendance_mode'],
+      )!,
+      periodModel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_model'],
+      ),
       archived: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}archived'],
@@ -6394,6 +6910,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
   final String grade;
   final String shift;
   final int capacity;
+  final String attendanceMode;
+  final String? periodModel;
   final int archived;
   final String created;
   final String updated;
@@ -6407,6 +6925,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
     required this.grade,
     required this.shift,
     required this.capacity,
+    required this.attendanceMode,
+    this.periodModel,
     required this.archived,
     required this.created,
     required this.updated,
@@ -6423,6 +6943,10 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
     map['grade'] = Variable<String>(grade);
     map['shift'] = Variable<String>(shift);
     map['capacity'] = Variable<int>(capacity);
+    map['attendance_mode'] = Variable<String>(attendanceMode);
+    if (!nullToAbsent || periodModel != null) {
+      map['period_model'] = Variable<String>(periodModel);
+    }
     map['archived'] = Variable<int>(archived);
     map['created'] = Variable<String>(created);
     map['updated'] = Variable<String>(updated);
@@ -6440,6 +6964,10 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
       grade: Value(grade),
       shift: Value(shift),
       capacity: Value(capacity),
+      attendanceMode: Value(attendanceMode),
+      periodModel: periodModel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(periodModel),
       archived: Value(archived),
       created: Value(created),
       updated: Value(updated),
@@ -6461,6 +6989,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
       grade: serializer.fromJson<String>(json['grade']),
       shift: serializer.fromJson<String>(json['shift']),
       capacity: serializer.fromJson<int>(json['capacity']),
+      attendanceMode: serializer.fromJson<String>(json['attendance_mode']),
+      periodModel: serializer.fromJson<String?>(json['period_model']),
       archived: serializer.fromJson<int>(json['archived']),
       created: serializer.fromJson<String>(json['created']),
       updated: serializer.fromJson<String>(json['updated']),
@@ -6479,6 +7009,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
       'grade': serializer.toJson<String>(grade),
       'shift': serializer.toJson<String>(shift),
       'capacity': serializer.toJson<int>(capacity),
+      'attendance_mode': serializer.toJson<String>(attendanceMode),
+      'period_model': serializer.toJson<String?>(periodModel),
       'archived': serializer.toJson<int>(archived),
       'created': serializer.toJson<String>(created),
       'updated': serializer.toJson<String>(updated),
@@ -6495,6 +7027,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
     String? grade,
     String? shift,
     int? capacity,
+    String? attendanceMode,
+    Value<String?> periodModel = const Value.absent(),
     int? archived,
     String? created,
     String? updated,
@@ -6508,6 +7042,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
     grade: grade ?? this.grade,
     shift: shift ?? this.shift,
     capacity: capacity ?? this.capacity,
+    attendanceMode: attendanceMode ?? this.attendanceMode,
+    periodModel: periodModel.present ? periodModel.value : this.periodModel,
     archived: archived ?? this.archived,
     created: created ?? this.created,
     updated: updated ?? this.updated,
@@ -6527,6 +7063,12 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
       grade: data.grade.present ? data.grade.value : this.grade,
       shift: data.shift.present ? data.shift.value : this.shift,
       capacity: data.capacity.present ? data.capacity.value : this.capacity,
+      attendanceMode: data.attendanceMode.present
+          ? data.attendanceMode.value
+          : this.attendanceMode,
+      periodModel: data.periodModel.present
+          ? data.periodModel.value
+          : this.periodModel,
       archived: data.archived.present ? data.archived.value : this.archived,
       created: data.created.present ? data.created.value : this.created,
       updated: data.updated.present ? data.updated.value : this.updated,
@@ -6545,6 +7087,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
           ..write('grade: $grade, ')
           ..write('shift: $shift, ')
           ..write('capacity: $capacity, ')
+          ..write('attendanceMode: $attendanceMode, ')
+          ..write('periodModel: $periodModel, ')
           ..write('archived: $archived, ')
           ..write('created: $created, ')
           ..write('updated: $updated, ')
@@ -6563,6 +7107,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
     grade,
     shift,
     capacity,
+    attendanceMode,
+    periodModel,
     archived,
     created,
     updated,
@@ -6580,6 +7126,8 @@ class ClassGroup extends DataClass implements Insertable<ClassGroup> {
           other.grade == this.grade &&
           other.shift == this.shift &&
           other.capacity == this.capacity &&
+          other.attendanceMode == this.attendanceMode &&
+          other.periodModel == this.periodModel &&
           other.archived == this.archived &&
           other.created == this.created &&
           other.updated == this.updated &&
@@ -6595,6 +7143,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
   final Value<String> grade;
   final Value<String> shift;
   final Value<int> capacity;
+  final Value<String> attendanceMode;
+  final Value<String?> periodModel;
   final Value<int> archived;
   final Value<String> created;
   final Value<String> updated;
@@ -6609,6 +7159,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
     this.grade = const Value.absent(),
     this.shift = const Value.absent(),
     this.capacity = const Value.absent(),
+    this.attendanceMode = const Value.absent(),
+    this.periodModel = const Value.absent(),
     this.archived = const Value.absent(),
     this.created = const Value.absent(),
     this.updated = const Value.absent(),
@@ -6624,6 +7176,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
     required String grade,
     required String shift,
     required int capacity,
+    this.attendanceMode = const Value.absent(),
+    this.periodModel = const Value.absent(),
     this.archived = const Value.absent(),
     required String created,
     required String updated,
@@ -6648,6 +7202,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
     Expression<String>? grade,
     Expression<String>? shift,
     Expression<int>? capacity,
+    Expression<String>? attendanceMode,
+    Expression<String>? periodModel,
     Expression<int>? archived,
     Expression<String>? created,
     Expression<String>? updated,
@@ -6663,6 +7219,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
       if (grade != null) 'grade': grade,
       if (shift != null) 'shift': shift,
       if (capacity != null) 'capacity': capacity,
+      if (attendanceMode != null) 'attendance_mode': attendanceMode,
+      if (periodModel != null) 'period_model': periodModel,
       if (archived != null) 'archived': archived,
       if (created != null) 'created': created,
       if (updated != null) 'updated': updated,
@@ -6680,6 +7238,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
     Value<String>? grade,
     Value<String>? shift,
     Value<int>? capacity,
+    Value<String>? attendanceMode,
+    Value<String?>? periodModel,
     Value<int>? archived,
     Value<String>? created,
     Value<String>? updated,
@@ -6695,6 +7255,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
       grade: grade ?? this.grade,
       shift: shift ?? this.shift,
       capacity: capacity ?? this.capacity,
+      attendanceMode: attendanceMode ?? this.attendanceMode,
+      periodModel: periodModel ?? this.periodModel,
       archived: archived ?? this.archived,
       created: created ?? this.created,
       updated: updated ?? this.updated,
@@ -6730,6 +7292,12 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
     if (capacity.present) {
       map['capacity'] = Variable<int>(capacity.value);
     }
+    if (attendanceMode.present) {
+      map['attendance_mode'] = Variable<String>(attendanceMode.value);
+    }
+    if (periodModel.present) {
+      map['period_model'] = Variable<String>(periodModel.value);
+    }
     if (archived.present) {
       map['archived'] = Variable<int>(archived.value);
     }
@@ -6759,6 +7327,8 @@ class ClassGroupsCompanion extends UpdateCompanion<ClassGroup> {
           ..write('grade: $grade, ')
           ..write('shift: $shift, ')
           ..write('capacity: $capacity, ')
+          ..write('attendanceMode: $attendanceMode, ')
+          ..write('periodModel: $periodModel, ')
           ..write('archived: $archived, ')
           ..write('created: $created, ')
           ..write('updated: $updated, ')
@@ -8556,27 +9126,16 @@ class Journals extends Table with TableInfo<Journals, Journal> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
-  static const VerificationMeta _teacherMeta = const VerificationMeta(
-    'teacher',
-  );
-  late final GeneratedColumn<String> teacher = GeneratedColumn<String>(
-    'teacher',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL REFERENCES users(id)',
-  );
   static const VerificationMeta _componentMeta = const VerificationMeta(
     'component',
   );
   late final GeneratedColumn<String> component = GeneratedColumn<String>(
     'component',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'REFERENCES course_components(id)',
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES course_components(id)',
   );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
@@ -8595,7 +9154,6 @@ class Journals extends Table with TableInfo<Journals, Journal> {
     id,
     classGroup,
     subject,
-    teacher,
     component,
     revision,
   ];
@@ -8632,19 +9190,13 @@ class Journals extends Table with TableInfo<Journals, Journal> {
     } else if (isInserting) {
       context.missing(_subjectMeta);
     }
-    if (data.containsKey('teacher')) {
-      context.handle(
-        _teacherMeta,
-        teacher.isAcceptableOrUnknown(data['teacher']!, _teacherMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_teacherMeta);
-    }
     if (data.containsKey('component')) {
       context.handle(
         _componentMeta,
         component.isAcceptableOrUnknown(data['component']!, _componentMeta),
       );
+    } else if (isInserting) {
+      context.missing(_componentMeta);
     }
     if (data.containsKey('revision')) {
       context.handle(
@@ -8677,14 +9229,10 @@ class Journals extends Table with TableInfo<Journals, Journal> {
         DriftSqlType.string,
         data['${effectivePrefix}subject'],
       )!,
-      teacher: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}teacher'],
-      )!,
       component: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}component'],
-      ),
+      )!,
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -8709,15 +9257,13 @@ class Journal extends DataClass implements Insertable<Journal> {
   final String id;
   final String classGroup;
   final String subject;
-  final String teacher;
-  final String? component;
+  final String component;
   final int revision;
   const Journal({
     required this.id,
     required this.classGroup,
     required this.subject,
-    required this.teacher,
-    this.component,
+    required this.component,
     required this.revision,
   });
   @override
@@ -8726,10 +9272,7 @@ class Journal extends DataClass implements Insertable<Journal> {
     map['id'] = Variable<String>(id);
     map['class_group'] = Variable<String>(classGroup);
     map['subject'] = Variable<String>(subject);
-    map['teacher'] = Variable<String>(teacher);
-    if (!nullToAbsent || component != null) {
-      map['component'] = Variable<String>(component);
-    }
+    map['component'] = Variable<String>(component);
     map['revision'] = Variable<int>(revision);
     return map;
   }
@@ -8739,10 +9282,7 @@ class Journal extends DataClass implements Insertable<Journal> {
       id: Value(id),
       classGroup: Value(classGroup),
       subject: Value(subject),
-      teacher: Value(teacher),
-      component: component == null && nullToAbsent
-          ? const Value.absent()
-          : Value(component),
+      component: Value(component),
       revision: Value(revision),
     );
   }
@@ -8756,8 +9296,7 @@ class Journal extends DataClass implements Insertable<Journal> {
       id: serializer.fromJson<String>(json['id']),
       classGroup: serializer.fromJson<String>(json['class_group']),
       subject: serializer.fromJson<String>(json['subject']),
-      teacher: serializer.fromJson<String>(json['teacher']),
-      component: serializer.fromJson<String?>(json['component']),
+      component: serializer.fromJson<String>(json['component']),
       revision: serializer.fromJson<int>(json['revision']),
     );
   }
@@ -8768,8 +9307,7 @@ class Journal extends DataClass implements Insertable<Journal> {
       'id': serializer.toJson<String>(id),
       'class_group': serializer.toJson<String>(classGroup),
       'subject': serializer.toJson<String>(subject),
-      'teacher': serializer.toJson<String>(teacher),
-      'component': serializer.toJson<String?>(component),
+      'component': serializer.toJson<String>(component),
       'revision': serializer.toJson<int>(revision),
     };
   }
@@ -8778,15 +9316,13 @@ class Journal extends DataClass implements Insertable<Journal> {
     String? id,
     String? classGroup,
     String? subject,
-    String? teacher,
-    Value<String?> component = const Value.absent(),
+    String? component,
     int? revision,
   }) => Journal(
     id: id ?? this.id,
     classGroup: classGroup ?? this.classGroup,
     subject: subject ?? this.subject,
-    teacher: teacher ?? this.teacher,
-    component: component.present ? component.value : this.component,
+    component: component ?? this.component,
     revision: revision ?? this.revision,
   );
   Journal copyWithCompanion(JournalsCompanion data) {
@@ -8796,7 +9332,6 @@ class Journal extends DataClass implements Insertable<Journal> {
           ? data.classGroup.value
           : this.classGroup,
       subject: data.subject.present ? data.subject.value : this.subject,
-      teacher: data.teacher.present ? data.teacher.value : this.teacher,
       component: data.component.present ? data.component.value : this.component,
       revision: data.revision.present ? data.revision.value : this.revision,
     );
@@ -8808,7 +9343,6 @@ class Journal extends DataClass implements Insertable<Journal> {
           ..write('id: $id, ')
           ..write('classGroup: $classGroup, ')
           ..write('subject: $subject, ')
-          ..write('teacher: $teacher, ')
           ..write('component: $component, ')
           ..write('revision: $revision')
           ..write(')'))
@@ -8816,8 +9350,7 @@ class Journal extends DataClass implements Insertable<Journal> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, classGroup, subject, teacher, component, revision);
+  int get hashCode => Object.hash(id, classGroup, subject, component, revision);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8825,7 +9358,6 @@ class Journal extends DataClass implements Insertable<Journal> {
           other.id == this.id &&
           other.classGroup == this.classGroup &&
           other.subject == this.subject &&
-          other.teacher == this.teacher &&
           other.component == this.component &&
           other.revision == this.revision);
 }
@@ -8834,15 +9366,13 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
   final Value<String> id;
   final Value<String> classGroup;
   final Value<String> subject;
-  final Value<String> teacher;
-  final Value<String?> component;
+  final Value<String> component;
   final Value<int> revision;
   final Value<int> rowid;
   const JournalsCompanion({
     this.id = const Value.absent(),
     this.classGroup = const Value.absent(),
     this.subject = const Value.absent(),
-    this.teacher = const Value.absent(),
     this.component = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -8851,19 +9381,17 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
     required String id,
     required String classGroup,
     required String subject,
-    required String teacher,
-    this.component = const Value.absent(),
+    required String component,
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        classGroup = Value(classGroup),
        subject = Value(subject),
-       teacher = Value(teacher);
+       component = Value(component);
   static Insertable<Journal> custom({
     Expression<String>? id,
     Expression<String>? classGroup,
     Expression<String>? subject,
-    Expression<String>? teacher,
     Expression<String>? component,
     Expression<int>? revision,
     Expression<int>? rowid,
@@ -8872,7 +9400,6 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
       if (id != null) 'id': id,
       if (classGroup != null) 'class_group': classGroup,
       if (subject != null) 'subject': subject,
-      if (teacher != null) 'teacher': teacher,
       if (component != null) 'component': component,
       if (revision != null) 'revision': revision,
       if (rowid != null) 'rowid': rowid,
@@ -8883,8 +9410,7 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
     Value<String>? id,
     Value<String>? classGroup,
     Value<String>? subject,
-    Value<String>? teacher,
-    Value<String?>? component,
+    Value<String>? component,
     Value<int>? revision,
     Value<int>? rowid,
   }) {
@@ -8892,7 +9418,6 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
       id: id ?? this.id,
       classGroup: classGroup ?? this.classGroup,
       subject: subject ?? this.subject,
-      teacher: teacher ?? this.teacher,
       component: component ?? this.component,
       revision: revision ?? this.revision,
       rowid: rowid ?? this.rowid,
@@ -8910,9 +9435,6 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
     }
     if (subject.present) {
       map['subject'] = Variable<String>(subject.value);
-    }
-    if (teacher.present) {
-      map['teacher'] = Variable<String>(teacher.value);
     }
     if (component.present) {
       map['component'] = Variable<String>(component.value);
@@ -8932,7 +9454,6 @@ class JournalsCompanion extends UpdateCompanion<Journal> {
           ..write('id: $id, ')
           ..write('classGroup: $classGroup, ')
           ..write('subject: $subject, ')
-          ..write('teacher: $teacher, ')
           ..write('component: $component, ')
           ..write('revision: $revision, ')
           ..write('rowid: $rowid')
@@ -8995,6 +9516,18 @@ class Lessons extends Table with TableInfo<Lessons, Lesson> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
+  static const VerificationMeta _attendanceModeMeta = const VerificationMeta(
+    'attendanceMode',
+  );
+  late final GeneratedColumn<String> attendanceMode = GeneratedColumn<String>(
+    'attendance_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'lesson\' CHECK (attendance_mode IN (\'lesson\', \'day\'))',
+    defaultValue: const CustomExpression('\'lesson\''),
+  );
   static const VerificationMeta _stateMeta = const VerificationMeta('state');
   late final GeneratedColumn<String> state = GeneratedColumn<String>(
     'state',
@@ -9045,6 +9578,7 @@ class Lessons extends Table with TableInfo<Lessons, Lesson> {
     date,
     units,
     content,
+    attendanceMode,
     state,
     revision,
     created,
@@ -9098,6 +9632,15 @@ class Lessons extends Table with TableInfo<Lessons, Lesson> {
       );
     } else if (isInserting) {
       context.missing(_contentMeta);
+    }
+    if (data.containsKey('attendance_mode')) {
+      context.handle(
+        _attendanceModeMeta,
+        attendanceMode.isAcceptableOrUnknown(
+          data['attendance_mode']!,
+          _attendanceModeMeta,
+        ),
+      );
     }
     if (data.containsKey('state')) {
       context.handle(
@@ -9158,6 +9701,10 @@ class Lessons extends Table with TableInfo<Lessons, Lesson> {
         DriftSqlType.string,
         data['${effectivePrefix}content'],
       )!,
+      attendanceMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attendance_mode'],
+      )!,
       state: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}state'],
@@ -9192,6 +9739,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   final String date;
   final int units;
   final String content;
+  final String attendanceMode;
   final String state;
   final int revision;
   final String created;
@@ -9202,6 +9750,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     required this.date,
     required this.units,
     required this.content,
+    required this.attendanceMode,
     required this.state,
     required this.revision,
     required this.created,
@@ -9215,6 +9764,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     map['date'] = Variable<String>(date);
     map['units'] = Variable<int>(units);
     map['content'] = Variable<String>(content);
+    map['attendance_mode'] = Variable<String>(attendanceMode);
     map['state'] = Variable<String>(state);
     map['revision'] = Variable<int>(revision);
     map['created'] = Variable<String>(created);
@@ -9229,6 +9779,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       date: Value(date),
       units: Value(units),
       content: Value(content),
+      attendanceMode: Value(attendanceMode),
       state: Value(state),
       revision: Value(revision),
       created: Value(created),
@@ -9247,6 +9798,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       date: serializer.fromJson<String>(json['date']),
       units: serializer.fromJson<int>(json['units']),
       content: serializer.fromJson<String>(json['content']),
+      attendanceMode: serializer.fromJson<String>(json['attendance_mode']),
       state: serializer.fromJson<String>(json['state']),
       revision: serializer.fromJson<int>(json['revision']),
       created: serializer.fromJson<String>(json['created']),
@@ -9262,6 +9814,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       'date': serializer.toJson<String>(date),
       'units': serializer.toJson<int>(units),
       'content': serializer.toJson<String>(content),
+      'attendance_mode': serializer.toJson<String>(attendanceMode),
       'state': serializer.toJson<String>(state),
       'revision': serializer.toJson<int>(revision),
       'created': serializer.toJson<String>(created),
@@ -9275,6 +9828,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     String? date,
     int? units,
     String? content,
+    String? attendanceMode,
     String? state,
     int? revision,
     String? created,
@@ -9285,6 +9839,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     date: date ?? this.date,
     units: units ?? this.units,
     content: content ?? this.content,
+    attendanceMode: attendanceMode ?? this.attendanceMode,
     state: state ?? this.state,
     revision: revision ?? this.revision,
     created: created ?? this.created,
@@ -9297,6 +9852,9 @@ class Lesson extends DataClass implements Insertable<Lesson> {
       date: data.date.present ? data.date.value : this.date,
       units: data.units.present ? data.units.value : this.units,
       content: data.content.present ? data.content.value : this.content,
+      attendanceMode: data.attendanceMode.present
+          ? data.attendanceMode.value
+          : this.attendanceMode,
       state: data.state.present ? data.state.value : this.state,
       revision: data.revision.present ? data.revision.value : this.revision,
       created: data.created.present ? data.created.value : this.created,
@@ -9312,6 +9870,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           ..write('date: $date, ')
           ..write('units: $units, ')
           ..write('content: $content, ')
+          ..write('attendanceMode: $attendanceMode, ')
           ..write('state: $state, ')
           ..write('revision: $revision, ')
           ..write('created: $created, ')
@@ -9327,6 +9886,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     date,
     units,
     content,
+    attendanceMode,
     state,
     revision,
     created,
@@ -9341,6 +9901,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           other.date == this.date &&
           other.units == this.units &&
           other.content == this.content &&
+          other.attendanceMode == this.attendanceMode &&
           other.state == this.state &&
           other.revision == this.revision &&
           other.created == this.created &&
@@ -9353,6 +9914,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   final Value<String> date;
   final Value<int> units;
   final Value<String> content;
+  final Value<String> attendanceMode;
   final Value<String> state;
   final Value<int> revision;
   final Value<String> created;
@@ -9364,6 +9926,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     this.date = const Value.absent(),
     this.units = const Value.absent(),
     this.content = const Value.absent(),
+    this.attendanceMode = const Value.absent(),
     this.state = const Value.absent(),
     this.revision = const Value.absent(),
     this.created = const Value.absent(),
@@ -9376,6 +9939,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     required String date,
     required int units,
     required String content,
+    this.attendanceMode = const Value.absent(),
     required String state,
     this.revision = const Value.absent(),
     required String created,
@@ -9395,6 +9959,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     Expression<String>? date,
     Expression<int>? units,
     Expression<String>? content,
+    Expression<String>? attendanceMode,
     Expression<String>? state,
     Expression<int>? revision,
     Expression<String>? created,
@@ -9407,6 +9972,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       if (date != null) 'date': date,
       if (units != null) 'units': units,
       if (content != null) 'content': content,
+      if (attendanceMode != null) 'attendance_mode': attendanceMode,
       if (state != null) 'state': state,
       if (revision != null) 'revision': revision,
       if (created != null) 'created': created,
@@ -9421,6 +9987,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     Value<String>? date,
     Value<int>? units,
     Value<String>? content,
+    Value<String>? attendanceMode,
     Value<String>? state,
     Value<int>? revision,
     Value<String>? created,
@@ -9433,6 +10000,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       date: date ?? this.date,
       units: units ?? this.units,
       content: content ?? this.content,
+      attendanceMode: attendanceMode ?? this.attendanceMode,
       state: state ?? this.state,
       revision: revision ?? this.revision,
       created: created ?? this.created,
@@ -9458,6 +10026,9 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     }
     if (content.present) {
       map['content'] = Variable<String>(content.value);
+    }
+    if (attendanceMode.present) {
+      map['attendance_mode'] = Variable<String>(attendanceMode.value);
     }
     if (state.present) {
       map['state'] = Variable<String>(state.value);
@@ -9485,6 +10056,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
           ..write('date: $date, ')
           ..write('units: $units, ')
           ..write('content: $content, ')
+          ..write('attendanceMode: $attendanceMode, ')
           ..write('state: $state, ')
           ..write('revision: $revision, ')
           ..write('created: $created, ')
@@ -9529,8 +10101,19 @@ class Attendance extends Table with TableInfo<Attendance, AttendanceData> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (status IN (\'Presente\', \'Ausente\', \'Justificada\'))',
   );
+  static const VerificationMeta _absencesMeta = const VerificationMeta(
+    'absences',
+  );
+  late final GeneratedColumn<int> absences = GeneratedColumn<int>(
+    'absences',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (absences >= 0 AND absences <= 20)',
+  );
   @override
-  List<GeneratedColumn> get $columns => [lesson, enrollment, status];
+  List<GeneratedColumn> get $columns => [lesson, enrollment, status, absences];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -9567,6 +10150,14 @@ class Attendance extends Table with TableInfo<Attendance, AttendanceData> {
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
+    if (data.containsKey('absences')) {
+      context.handle(
+        _absencesMeta,
+        absences.isAcceptableOrUnknown(data['absences']!, _absencesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_absencesMeta);
+    }
     return context;
   }
 
@@ -9588,6 +10179,10 @@ class Attendance extends Table with TableInfo<Attendance, AttendanceData> {
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      absences: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}absences'],
+      )!,
     );
   }
 
@@ -9608,10 +10203,12 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
   final String lesson;
   final String enrollment;
   final String status;
+  final int absences;
   const AttendanceData({
     required this.lesson,
     required this.enrollment,
     required this.status,
+    required this.absences,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9619,6 +10216,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     map['lesson'] = Variable<String>(lesson);
     map['enrollment'] = Variable<String>(enrollment);
     map['status'] = Variable<String>(status);
+    map['absences'] = Variable<int>(absences);
     return map;
   }
 
@@ -9627,6 +10225,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       lesson: Value(lesson),
       enrollment: Value(enrollment),
       status: Value(status),
+      absences: Value(absences),
     );
   }
 
@@ -9639,6 +10238,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       lesson: serializer.fromJson<String>(json['lesson']),
       enrollment: serializer.fromJson<String>(json['enrollment']),
       status: serializer.fromJson<String>(json['status']),
+      absences: serializer.fromJson<int>(json['absences']),
     );
   }
   @override
@@ -9648,6 +10248,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
       'lesson': serializer.toJson<String>(lesson),
       'enrollment': serializer.toJson<String>(enrollment),
       'status': serializer.toJson<String>(status),
+      'absences': serializer.toJson<int>(absences),
     };
   }
 
@@ -9655,10 +10256,12 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     String? lesson,
     String? enrollment,
     String? status,
+    int? absences,
   }) => AttendanceData(
     lesson: lesson ?? this.lesson,
     enrollment: enrollment ?? this.enrollment,
     status: status ?? this.status,
+    absences: absences ?? this.absences,
   );
   AttendanceData copyWithCompanion(AttendanceCompanion data) {
     return AttendanceData(
@@ -9667,6 +10270,7 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
           ? data.enrollment.value
           : this.enrollment,
       status: data.status.present ? data.status.value : this.status,
+      absences: data.absences.present ? data.absences.value : this.absences,
     );
   }
 
@@ -9675,51 +10279,59 @@ class AttendanceData extends DataClass implements Insertable<AttendanceData> {
     return (StringBuffer('AttendanceData(')
           ..write('lesson: $lesson, ')
           ..write('enrollment: $enrollment, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('absences: $absences')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(lesson, enrollment, status);
+  int get hashCode => Object.hash(lesson, enrollment, status, absences);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AttendanceData &&
           other.lesson == this.lesson &&
           other.enrollment == this.enrollment &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.absences == this.absences);
 }
 
 class AttendanceCompanion extends UpdateCompanion<AttendanceData> {
   final Value<String> lesson;
   final Value<String> enrollment;
   final Value<String> status;
+  final Value<int> absences;
   final Value<int> rowid;
   const AttendanceCompanion({
     this.lesson = const Value.absent(),
     this.enrollment = const Value.absent(),
     this.status = const Value.absent(),
+    this.absences = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AttendanceCompanion.insert({
     required String lesson,
     required String enrollment,
     required String status,
+    required int absences,
     this.rowid = const Value.absent(),
   }) : lesson = Value(lesson),
        enrollment = Value(enrollment),
-       status = Value(status);
+       status = Value(status),
+       absences = Value(absences);
   static Insertable<AttendanceData> custom({
     Expression<String>? lesson,
     Expression<String>? enrollment,
     Expression<String>? status,
+    Expression<int>? absences,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (lesson != null) 'lesson': lesson,
       if (enrollment != null) 'enrollment': enrollment,
       if (status != null) 'status': status,
+      if (absences != null) 'absences': absences,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9728,12 +10340,14 @@ class AttendanceCompanion extends UpdateCompanion<AttendanceData> {
     Value<String>? lesson,
     Value<String>? enrollment,
     Value<String>? status,
+    Value<int>? absences,
     Value<int>? rowid,
   }) {
     return AttendanceCompanion(
       lesson: lesson ?? this.lesson,
       enrollment: enrollment ?? this.enrollment,
       status: status ?? this.status,
+      absences: absences ?? this.absences,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -9750,6 +10364,9 @@ class AttendanceCompanion extends UpdateCompanion<AttendanceData> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (absences.present) {
+      map['absences'] = Variable<int>(absences.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -9762,6 +10379,7 @@ class AttendanceCompanion extends UpdateCompanion<AttendanceData> {
           ..write('lesson: $lesson, ')
           ..write('enrollment: $enrollment, ')
           ..write('status: $status, ')
+          ..write('absences: $absences, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -13140,6 +13758,684 @@ class AbsenceJustificationsCompanion
   }
 }
 
+class InstitutionSettings extends Table
+    with TableInfo<InstitutionSettings, InstitutionSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  InstitutionSettings(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL PRIMARY KEY CHECK (id = 1)',
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'Instituição\'',
+    defaultValue: const CustomExpression('\'Instituição\''),
+  );
+  static const VerificationMeta _documentTemplateMeta = const VerificationMeta(
+    'documentTemplate',
+  );
+  late final GeneratedColumn<String> documentTemplate = GeneratedColumn<String>(
+    'document_template',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'REFERENCES document_templates(id)',
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, documentTemplate, revision];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'institution_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<InstitutionSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
+    if (data.containsKey('document_template')) {
+      context.handle(
+        _documentTemplateMeta,
+        documentTemplate.isAcceptableOrUnknown(
+          data['document_template']!,
+          _documentTemplateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  InstitutionSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InstitutionSetting(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      documentTemplate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_template'],
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  InstitutionSettings createAlias(String alias) {
+    return InstitutionSettings(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class InstitutionSetting extends DataClass
+    implements Insertable<InstitutionSetting> {
+  final int id;
+  final String name;
+  final String? documentTemplate;
+  final int revision;
+  const InstitutionSetting({
+    required this.id,
+    required this.name,
+    this.documentTemplate,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || documentTemplate != null) {
+      map['document_template'] = Variable<String>(documentTemplate);
+    }
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  InstitutionSettingsCompanion toCompanion(bool nullToAbsent) {
+    return InstitutionSettingsCompanion(
+      id: Value(id),
+      name: Value(name),
+      documentTemplate: documentTemplate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(documentTemplate),
+      revision: Value(revision),
+    );
+  }
+
+  factory InstitutionSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InstitutionSetting(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      documentTemplate: serializer.fromJson<String?>(json['document_template']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'document_template': serializer.toJson<String?>(documentTemplate),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  InstitutionSetting copyWith({
+    int? id,
+    String? name,
+    Value<String?> documentTemplate = const Value.absent(),
+    int? revision,
+  }) => InstitutionSetting(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    documentTemplate: documentTemplate.present
+        ? documentTemplate.value
+        : this.documentTemplate,
+    revision: revision ?? this.revision,
+  );
+  InstitutionSetting copyWithCompanion(InstitutionSettingsCompanion data) {
+    return InstitutionSetting(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      documentTemplate: data.documentTemplate.present
+          ? data.documentTemplate.value
+          : this.documentTemplate,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstitutionSetting(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('documentTemplate: $documentTemplate, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, documentTemplate, revision);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InstitutionSetting &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.documentTemplate == this.documentTemplate &&
+          other.revision == this.revision);
+}
+
+class InstitutionSettingsCompanion extends UpdateCompanion<InstitutionSetting> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String?> documentTemplate;
+  final Value<int> revision;
+  const InstitutionSettingsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.documentTemplate = const Value.absent(),
+    this.revision = const Value.absent(),
+  });
+  InstitutionSettingsCompanion.insert({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.documentTemplate = const Value.absent(),
+    this.revision = const Value.absent(),
+  });
+  static Insertable<InstitutionSetting> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? documentTemplate,
+    Expression<int>? revision,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (documentTemplate != null) 'document_template': documentTemplate,
+      if (revision != null) 'revision': revision,
+    });
+  }
+
+  InstitutionSettingsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<String?>? documentTemplate,
+    Value<int>? revision,
+  }) {
+    return InstitutionSettingsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      documentTemplate: documentTemplate ?? this.documentTemplate,
+      revision: revision ?? this.revision,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (documentTemplate.present) {
+      map['document_template'] = Variable<String>(documentTemplate.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InstitutionSettingsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('documentTemplate: $documentTemplate, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class JournalTeachers extends Table
+    with TableInfo<JournalTeachers, JournalTeacher> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  JournalTeachers(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _journalMeta = const VerificationMeta(
+    'journal',
+  );
+  late final GeneratedColumn<String> journal = GeneratedColumn<String>(
+    'journal',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES journals(id)ON DELETE CASCADE',
+  );
+  static const VerificationMeta _teacherMeta = const VerificationMeta(
+    'teacher',
+  );
+  late final GeneratedColumn<String> teacher = GeneratedColumn<String>(
+    'teacher',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES users(id)',
+  );
+  static const VerificationMeta _validFromMeta = const VerificationMeta(
+    'validFrom',
+  );
+  late final GeneratedColumn<String> validFrom = GeneratedColumn<String>(
+    'valid_from',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _validToMeta = const VerificationMeta(
+    'validTo',
+  );
+  late final GeneratedColumn<String> validTo = GeneratedColumn<String>(
+    'valid_to',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (valid_to >= valid_from)',
+  );
+  static const VerificationMeta _assignmentMeta = const VerificationMeta(
+    'assignment',
+  );
+  late final GeneratedColumn<String> assignment = GeneratedColumn<String>(
+    'assignment',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'Docência\'',
+    defaultValue: const CustomExpression('\'Docência\''),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    journal,
+    teacher,
+    validFrom,
+    validTo,
+    assignment,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'journal_teachers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<JournalTeacher> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('journal')) {
+      context.handle(
+        _journalMeta,
+        journal.isAcceptableOrUnknown(data['journal']!, _journalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_journalMeta);
+    }
+    if (data.containsKey('teacher')) {
+      context.handle(
+        _teacherMeta,
+        teacher.isAcceptableOrUnknown(data['teacher']!, _teacherMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_teacherMeta);
+    }
+    if (data.containsKey('valid_from')) {
+      context.handle(
+        _validFromMeta,
+        validFrom.isAcceptableOrUnknown(data['valid_from']!, _validFromMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_validFromMeta);
+    }
+    if (data.containsKey('valid_to')) {
+      context.handle(
+        _validToMeta,
+        validTo.isAcceptableOrUnknown(data['valid_to']!, _validToMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_validToMeta);
+    }
+    if (data.containsKey('assignment')) {
+      context.handle(
+        _assignmentMeta,
+        assignment.isAcceptableOrUnknown(data['assignment']!, _assignmentMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {journal, teacher, validFrom};
+  @override
+  JournalTeacher map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JournalTeacher(
+      journal: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}journal'],
+      )!,
+      teacher: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}teacher'],
+      )!,
+      validFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valid_from'],
+      )!,
+      validTo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}valid_to'],
+      )!,
+      assignment: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}assignment'],
+      )!,
+    );
+  }
+
+  @override
+  JournalTeachers createAlias(String alias) {
+    return JournalTeachers(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const [
+    'PRIMARY KEY(journal, teacher, valid_from)',
+  ];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class JournalTeacher extends DataClass implements Insertable<JournalTeacher> {
+  final String journal;
+  final String teacher;
+  final String validFrom;
+  final String validTo;
+  final String assignment;
+  const JournalTeacher({
+    required this.journal,
+    required this.teacher,
+    required this.validFrom,
+    required this.validTo,
+    required this.assignment,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['journal'] = Variable<String>(journal);
+    map['teacher'] = Variable<String>(teacher);
+    map['valid_from'] = Variable<String>(validFrom);
+    map['valid_to'] = Variable<String>(validTo);
+    map['assignment'] = Variable<String>(assignment);
+    return map;
+  }
+
+  JournalTeachersCompanion toCompanion(bool nullToAbsent) {
+    return JournalTeachersCompanion(
+      journal: Value(journal),
+      teacher: Value(teacher),
+      validFrom: Value(validFrom),
+      validTo: Value(validTo),
+      assignment: Value(assignment),
+    );
+  }
+
+  factory JournalTeacher.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JournalTeacher(
+      journal: serializer.fromJson<String>(json['journal']),
+      teacher: serializer.fromJson<String>(json['teacher']),
+      validFrom: serializer.fromJson<String>(json['valid_from']),
+      validTo: serializer.fromJson<String>(json['valid_to']),
+      assignment: serializer.fromJson<String>(json['assignment']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'journal': serializer.toJson<String>(journal),
+      'teacher': serializer.toJson<String>(teacher),
+      'valid_from': serializer.toJson<String>(validFrom),
+      'valid_to': serializer.toJson<String>(validTo),
+      'assignment': serializer.toJson<String>(assignment),
+    };
+  }
+
+  JournalTeacher copyWith({
+    String? journal,
+    String? teacher,
+    String? validFrom,
+    String? validTo,
+    String? assignment,
+  }) => JournalTeacher(
+    journal: journal ?? this.journal,
+    teacher: teacher ?? this.teacher,
+    validFrom: validFrom ?? this.validFrom,
+    validTo: validTo ?? this.validTo,
+    assignment: assignment ?? this.assignment,
+  );
+  JournalTeacher copyWithCompanion(JournalTeachersCompanion data) {
+    return JournalTeacher(
+      journal: data.journal.present ? data.journal.value : this.journal,
+      teacher: data.teacher.present ? data.teacher.value : this.teacher,
+      validFrom: data.validFrom.present ? data.validFrom.value : this.validFrom,
+      validTo: data.validTo.present ? data.validTo.value : this.validTo,
+      assignment: data.assignment.present
+          ? data.assignment.value
+          : this.assignment,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalTeacher(')
+          ..write('journal: $journal, ')
+          ..write('teacher: $teacher, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('validTo: $validTo, ')
+          ..write('assignment: $assignment')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(journal, teacher, validFrom, validTo, assignment);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JournalTeacher &&
+          other.journal == this.journal &&
+          other.teacher == this.teacher &&
+          other.validFrom == this.validFrom &&
+          other.validTo == this.validTo &&
+          other.assignment == this.assignment);
+}
+
+class JournalTeachersCompanion extends UpdateCompanion<JournalTeacher> {
+  final Value<String> journal;
+  final Value<String> teacher;
+  final Value<String> validFrom;
+  final Value<String> validTo;
+  final Value<String> assignment;
+  final Value<int> rowid;
+  const JournalTeachersCompanion({
+    this.journal = const Value.absent(),
+    this.teacher = const Value.absent(),
+    this.validFrom = const Value.absent(),
+    this.validTo = const Value.absent(),
+    this.assignment = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  JournalTeachersCompanion.insert({
+    required String journal,
+    required String teacher,
+    required String validFrom,
+    required String validTo,
+    this.assignment = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : journal = Value(journal),
+       teacher = Value(teacher),
+       validFrom = Value(validFrom),
+       validTo = Value(validTo);
+  static Insertable<JournalTeacher> custom({
+    Expression<String>? journal,
+    Expression<String>? teacher,
+    Expression<String>? validFrom,
+    Expression<String>? validTo,
+    Expression<String>? assignment,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (journal != null) 'journal': journal,
+      if (teacher != null) 'teacher': teacher,
+      if (validFrom != null) 'valid_from': validFrom,
+      if (validTo != null) 'valid_to': validTo,
+      if (assignment != null) 'assignment': assignment,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  JournalTeachersCompanion copyWith({
+    Value<String>? journal,
+    Value<String>? teacher,
+    Value<String>? validFrom,
+    Value<String>? validTo,
+    Value<String>? assignment,
+    Value<int>? rowid,
+  }) {
+    return JournalTeachersCompanion(
+      journal: journal ?? this.journal,
+      teacher: teacher ?? this.teacher,
+      validFrom: validFrom ?? this.validFrom,
+      validTo: validTo ?? this.validTo,
+      assignment: assignment ?? this.assignment,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (journal.present) {
+      map['journal'] = Variable<String>(journal.value);
+    }
+    if (teacher.present) {
+      map['teacher'] = Variable<String>(teacher.value);
+    }
+    if (validFrom.present) {
+      map['valid_from'] = Variable<String>(validFrom.value);
+    }
+    if (validTo.present) {
+      map['valid_to'] = Variable<String>(validTo.value);
+    }
+    if (assignment.present) {
+      map['assignment'] = Variable<String>(assignment.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalTeachersCompanion(')
+          ..write('journal: $journal, ')
+          ..write('teacher: $teacher, ')
+          ..write('validFrom: $validFrom, ')
+          ..write('validTo: $validTo, ')
+          ..write('assignment: $assignment, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(e);
   $DatabaseManager get managers => $DatabaseManager(this);
@@ -13164,6 +14460,7 @@ abstract class _$Database extends GeneratedDatabase {
   late final Sessions sessions = Sessions(this);
   late final StudentAccess studentAccess = StudentAccess(this);
   late final Courses courses = Courses(this);
+  late final PeriodModels periodModels = PeriodModels(this);
   late final ClassGroups classGroups = ClassGroups(this);
   late final Enrollments enrollments = Enrollments(this);
   late final EnrollmentEvents enrollmentEvents = EnrollmentEvents(this);
@@ -13184,6 +14481,38 @@ abstract class _$Database extends GeneratedDatabase {
   late final AssessmentEvents assessmentEvents = AssessmentEvents(this);
   late final AbsenceJustifications absenceJustifications =
       AbsenceJustifications(this);
+  late final InstitutionSettings institutionSettings = InstitutionSettings(
+    this,
+  );
+  late final JournalTeachers journalTeachers = JournalTeachers(this);
+  late final Index journalTeacherDates = Index(
+    'journal_teacher_dates',
+    'CREATE INDEX journal_teacher_dates ON journal_teachers (teacher, valid_from, valid_to)',
+  );
+  late final Index lessonsJournalDate = Index(
+    'lessons_journal_date',
+    'CREATE INDEX lessons_journal_date ON lessons (journal, date)',
+  );
+  late final Index eventsRequestCreated = Index(
+    'events_request_created',
+    'CREATE INDEX events_request_created ON events (request, created)',
+  );
+  late final Index lessonEventsLesson = Index(
+    'lesson_events_lesson',
+    'CREATE INDEX lesson_events_lesson ON lesson_events (lesson, created)',
+  );
+  late final Index gradesEnrollment = Index(
+    'grades_enrollment',
+    'CREATE INDEX grades_enrollment ON grades (enrollment)',
+  );
+  late final Index attendanceEnrollment = Index(
+    'attendance_enrollment',
+    'CREATE INDEX attendance_enrollment ON attendance (enrollment)',
+  );
+  late final Index timetableDayDates = Index(
+    'timetable_day_dates',
+    'CREATE INDEX timetable_day_dates ON timetable_slots (weekday, valid_from, valid_to)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -13204,6 +14533,7 @@ abstract class _$Database extends GeneratedDatabase {
     sessions,
     studentAccess,
     courses,
+    periodModels,
     classGroups,
     enrollments,
     enrollmentEvents,
@@ -13220,6 +14550,15 @@ abstract class _$Database extends GeneratedDatabase {
     grades,
     assessmentEvents,
     absenceJustifications,
+    institutionSettings,
+    journalTeachers,
+    journalTeacherDates,
+    lessonsJournalDate,
+    eventsRequestCreated,
+    lessonEventsLesson,
+    gradesEnrollment,
+    attendanceEnrollment,
+    timetableDayDates,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -13250,6 +14589,13 @@ abstract class _$Database extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('student_access', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'journals',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('journal_teachers', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -13404,25 +14750,6 @@ final class $UsersReferences extends BaseReferences<_$Database, Users, User> {
     );
   }
 
-  static MultiTypedResultKey<Journals, List<Journal>> _journalsRefsTable(
-    _$Database db,
-  ) => MultiTypedResultKey.fromTable(
-    db.journals,
-    aliasName: 'users__id__journals__teacher',
-  );
-
-  $JournalsProcessedTableManager get journalsRefs {
-    final manager = $JournalsTableManager(
-      $_db,
-      $_db.journals,
-    ).filter((f) => f.teacher.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_journalsRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
   static MultiTypedResultKey<LessonEvents, List<LessonEvent>>
   _lessonEventsRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
     db.lessonEvents,
@@ -13475,6 +14802,26 @@ final class $UsersReferences extends BaseReferences<_$Database, Users, User> {
 
     final cache = $_typedResult.readTableOrNull(
       _assessmentEventsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<JournalTeachers, List<JournalTeacher>>
+  _journalTeachersRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.journalTeachers,
+    aliasName: 'users__id__journal_teachers__teacher',
+  );
+
+  $JournalTeachersProcessedTableManager get journalTeachersRefs {
+    final manager = $JournalTeachersTableManager(
+      $_db,
+      $_db.journalTeachers,
+    ).filter((f) => f.teacher.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _journalTeachersRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -13685,31 +15032,6 @@ class $UsersFilterComposer extends Composer<_$Database, Users> {
     return f(composer);
   }
 
-  Expression<bool> journalsRefs(
-    Expression<bool> Function($JournalsFilterComposer f) f,
-  ) {
-    final $JournalsFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.journals,
-      getReferencedColumn: (t) => t.teacher,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $JournalsFilterComposer(
-            $db: $db,
-            $table: $db.journals,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
   Expression<bool> lessonEventsRefs(
     Expression<bool> Function($LessonEventsFilterComposer f) f,
   ) {
@@ -13776,6 +15098,31 @@ class $UsersFilterComposer extends Composer<_$Database, Users> {
           }) => $AssessmentEventsFilterComposer(
             $db: $db,
             $table: $db.assessmentEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> journalTeachersRefs(
+    Expression<bool> Function($JournalTeachersFilterComposer f) f,
+  ) {
+    final $JournalTeachersFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalTeachers,
+      getReferencedColumn: (t) => t.teacher,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalTeachersFilterComposer(
+            $db: $db,
+            $table: $db.journalTeachers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14012,31 +15359,6 @@ class $UsersAnnotationComposer extends Composer<_$Database, Users> {
     return f(composer);
   }
 
-  Expression<T> journalsRefs<T extends Object>(
-    Expression<T> Function($JournalsAnnotationComposer a) f,
-  ) {
-    final $JournalsAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.journals,
-      getReferencedColumn: (t) => t.teacher,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $JournalsAnnotationComposer(
-            $db: $db,
-            $table: $db.journals,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-
   Expression<T> lessonEventsRefs<T extends Object>(
     Expression<T> Function($LessonEventsAnnotationComposer a) f,
   ) {
@@ -14111,6 +15433,31 @@ class $UsersAnnotationComposer extends Composer<_$Database, Users> {
     );
     return f(composer);
   }
+
+  Expression<T> journalTeachersRefs<T extends Object>(
+    Expression<T> Function($JournalTeachersAnnotationComposer a) f,
+  ) {
+    final $JournalTeachersAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalTeachers,
+      getReferencedColumn: (t) => t.teacher,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalTeachersAnnotationComposer(
+            $db: $db,
+            $table: $db.journalTeachers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $UsersTableManager
@@ -14134,10 +15481,10 @@ class $UsersTableManager
             bool sessionsRefs,
             bool studentAccessRefs,
             bool enrollmentEventsRefs,
-            bool journalsRefs,
             bool lessonEventsRefs,
             bool teacherProfilesRefs,
             bool assessmentEventsRefs,
+            bool journalTeachersRefs,
           })
         > {
   $UsersTableManager(_$Database db, Users table)
@@ -14196,10 +15543,10 @@ class $UsersTableManager
                 sessionsRefs = false,
                 studentAccessRefs = false,
                 enrollmentEventsRefs = false,
-                journalsRefs = false,
                 lessonEventsRefs = false,
                 teacherProfilesRefs = false,
                 assessmentEventsRefs = false,
+                journalTeachersRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -14211,10 +15558,10 @@ class $UsersTableManager
                     if (sessionsRefs) db.sessions,
                     if (studentAccessRefs) db.studentAccess,
                     if (enrollmentEventsRefs) db.enrollmentEvents,
-                    if (journalsRefs) db.journals,
                     if (lessonEventsRefs) db.lessonEvents,
                     if (teacherProfilesRefs) db.teacherProfiles,
                     if (assessmentEventsRefs) db.assessmentEvents,
+                    if (journalTeachersRefs) db.journalTeachers,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -14338,23 +15685,6 @@ class $UsersTableManager
                           referencedColumn: 'actor',
                           typedResults: items,
                         ),
-                      if (journalsRefs)
-                        await $_getPrefetchedDataByColumns<
-                          User,
-                          Users,
-                          Journal,
-                          Journals
-                        >(
-                          currentTable: table,
-                          referencedTable: $UsersReferences._journalsRefsTable(
-                            db,
-                          ),
-                          managerFromTypedResult: (p0) =>
-                              $UsersReferences(db, table, p0).journalsRefs,
-                          currentColumn: 'id',
-                          referencedColumn: 'teacher',
-                          typedResults: items,
-                        ),
                       if (lessonEventsRefs)
                         await $_getPrefetchedDataByColumns<
                           User,
@@ -14409,6 +15739,25 @@ class $UsersTableManager
                           referencedColumn: 'actor',
                           typedResults: items,
                         ),
+                      if (journalTeachersRefs)
+                        await $_getPrefetchedDataByColumns<
+                          User,
+                          Users,
+                          JournalTeacher,
+                          JournalTeachers
+                        >(
+                          currentTable: table,
+                          referencedTable: $UsersReferences
+                              ._journalTeachersRefsTable(db),
+                          managerFromTypedResult: (p0) => $UsersReferences(
+                            db,
+                            table,
+                            p0,
+                          ).journalTeachersRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'teacher',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -14437,10 +15786,10 @@ typedef $UsersProcessedTableManager =
         bool sessionsRefs,
         bool studentAccessRefs,
         bool enrollmentEventsRefs,
-        bool journalsRefs,
         bool lessonEventsRefs,
         bool teacherProfilesRefs,
         bool assessmentEventsRefs,
+        bool journalTeachersRefs,
       })
     >;
 typedef $FoldersCreateCompanionBuilder = FoldersCompanion Function({
@@ -15781,6 +17130,27 @@ final class $DocumentTemplatesReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<InstitutionSettings, List<InstitutionSetting>>
+  _institutionSettingsRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.institutionSettings,
+    aliasName:
+        'document_templates__id__institution_settings__document_template',
+  );
+
+  $InstitutionSettingsProcessedTableManager get institutionSettingsRefs {
+    final manager =
+        $InstitutionSettingsTableManager($_db, $_db.institutionSettings).filter(
+          (f) => f.documentTemplate.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _institutionSettingsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $DocumentTemplatesFilterComposer
@@ -15863,6 +17233,31 @@ class $DocumentTemplatesFilterComposer
           }) => $CoursesFilterComposer(
             $db: $db,
             $table: $db.courses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> institutionSettingsRefs(
+    Expression<bool> Function($InstitutionSettingsFilterComposer f) f,
+  ) {
+    final $InstitutionSettingsFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.institutionSettings,
+      getReferencedColumn: (t) => t.documentTemplate,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $InstitutionSettingsFilterComposer(
+            $db: $db,
+            $table: $db.institutionSettings,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -15993,6 +17388,31 @@ class $DocumentTemplatesAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> institutionSettingsRefs<T extends Object>(
+    Expression<T> Function($InstitutionSettingsAnnotationComposer a) f,
+  ) {
+    final $InstitutionSettingsAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.institutionSettings,
+      getReferencedColumn: (t) => t.documentTemplate,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $InstitutionSettingsAnnotationComposer(
+            $db: $db,
+            $table: $db.institutionSettings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $DocumentTemplatesTableManager
@@ -16008,7 +17428,11 @@ class $DocumentTemplatesTableManager
           $DocumentTemplatesUpdateCompanionBuilder,
           (DocumentTemplate, $DocumentTemplatesReferences),
           DocumentTemplate,
-          PrefetchHooks Function({bool studentsRefs, bool coursesRefs})
+          PrefetchHooks Function({
+            bool studentsRefs,
+            bool coursesRefs,
+            bool institutionSettingsRefs,
+          })
         > {
   $DocumentTemplatesTableManager(_$Database db, DocumentTemplates table)
     : super(
@@ -16065,60 +17489,86 @@ class $DocumentTemplatesTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({studentsRefs = false, coursesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (studentsRefs) db.students,
-                if (coursesRefs) db.courses,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (studentsRefs)
-                    await $_getPrefetchedDataByColumns<
-                      DocumentTemplate,
-                      DocumentTemplates,
-                      Student,
-                      Students
-                    >(
-                      currentTable: table,
-                      referencedTable: $DocumentTemplatesReferences
-                          ._studentsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $DocumentTemplatesReferences(
-                            db,
-                            table,
-                            p0,
-                          ).studentsRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'template',
-                      typedResults: items,
-                    ),
-                  if (coursesRefs)
-                    await $_getPrefetchedDataByColumns<
-                      DocumentTemplate,
-                      DocumentTemplates,
-                      Course,
-                      Courses
-                    >(
-                      currentTable: table,
-                      referencedTable: $DocumentTemplatesReferences
-                          ._coursesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $DocumentTemplatesReferences(
-                            db,
-                            table,
-                            p0,
-                          ).coursesRefs,
-                      currentColumn: 'id',
-                      referencedColumn: 'template',
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                studentsRefs = false,
+                coursesRefs = false,
+                institutionSettingsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (studentsRefs) db.students,
+                    if (coursesRefs) db.courses,
+                    if (institutionSettingsRefs) db.institutionSettings,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (studentsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          DocumentTemplate,
+                          DocumentTemplates,
+                          Student,
+                          Students
+                        >(
+                          currentTable: table,
+                          referencedTable: $DocumentTemplatesReferences
+                              ._studentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $DocumentTemplatesReferences(
+                                db,
+                                table,
+                                p0,
+                              ).studentsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'template',
+                          typedResults: items,
+                        ),
+                      if (coursesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          DocumentTemplate,
+                          DocumentTemplates,
+                          Course,
+                          Courses
+                        >(
+                          currentTable: table,
+                          referencedTable: $DocumentTemplatesReferences
+                              ._coursesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $DocumentTemplatesReferences(
+                                db,
+                                table,
+                                p0,
+                              ).coursesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'template',
+                          typedResults: items,
+                        ),
+                      if (institutionSettingsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          DocumentTemplate,
+                          DocumentTemplates,
+                          InstitutionSetting,
+                          InstitutionSettings
+                        >(
+                          currentTable: table,
+                          referencedTable: $DocumentTemplatesReferences
+                              ._institutionSettingsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $DocumentTemplatesReferences(
+                                db,
+                                table,
+                                p0,
+                              ).institutionSettingsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'document_template',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -16135,7 +17585,11 @@ typedef $DocumentTemplatesProcessedTableManager =
       $DocumentTemplatesUpdateCompanionBuilder,
       (DocumentTemplate, $DocumentTemplatesReferences),
       DocumentTemplate,
-      PrefetchHooks Function({bool studentsRefs, bool coursesRefs})
+      PrefetchHooks Function({
+        bool studentsRefs,
+        bool coursesRefs,
+        bool institutionSettingsRefs,
+      })
     >;
 typedef $StudentsCreateCompanionBuilder = StudentsCompanion Function({
   required String id,
@@ -20556,6 +22010,343 @@ typedef $CoursesProcessedTableManager =
         bool courseComponentsRefs,
       })
     >;
+typedef $PeriodModelsCreateCompanionBuilder = PeriodModelsCompanion Function({
+  required String id,
+  required String name,
+  required String validFrom,
+  required String validTo,
+  required String periodsJson,
+  Value<int> archived,
+  Value<int> revision,
+  Value<int> rowid,
+});
+typedef $PeriodModelsUpdateCompanionBuilder = PeriodModelsCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> validFrom,
+  Value<String> validTo,
+  Value<String> periodsJson,
+  Value<int> archived,
+  Value<int> revision,
+  Value<int> rowid,
+});
+
+final class $PeriodModelsReferences
+    extends BaseReferences<_$Database, PeriodModels, PeriodModel> {
+  $PeriodModelsReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<ClassGroups, List<ClassGroup>>
+  _classGroupsRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.classGroups,
+    aliasName: 'period_models__id__class_groups__period_model',
+  );
+
+  $ClassGroupsProcessedTableManager get classGroupsRefs {
+    final manager = $ClassGroupsTableManager(
+      $_db,
+      $_db.classGroups,
+    ).filter((f) => f.periodModel.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_classGroupsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $PeriodModelsFilterComposer extends Composer<_$Database, PeriodModels> {
+  $PeriodModelsFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validTo => $composableBuilder(
+    column: $table.validTo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodsJson => $composableBuilder(
+    column: $table.periodsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> classGroupsRefs(
+    Expression<bool> Function($ClassGroupsFilterComposer f) f,
+  ) {
+    final $ClassGroupsFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.classGroups,
+      getReferencedColumn: (t) => t.periodModel,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ClassGroupsFilterComposer(
+            $db: $db,
+            $table: $db.classGroups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $PeriodModelsOrderingComposer extends Composer<_$Database, PeriodModels> {
+  $PeriodModelsOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validTo => $composableBuilder(
+    column: $table.validTo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodsJson => $composableBuilder(
+    column: $table.periodsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $PeriodModelsAnnotationComposer
+    extends Composer<_$Database, PeriodModels> {
+  $PeriodModelsAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get validFrom =>
+      $composableBuilder(column: $table.validFrom, builder: (column) => column);
+
+  GeneratedColumn<String> get validTo =>
+      $composableBuilder(column: $table.validTo, builder: (column) => column);
+
+  GeneratedColumn<String> get periodsJson => $composableBuilder(
+    column: $table.periodsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get archived =>
+      $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  Expression<T> classGroupsRefs<T extends Object>(
+    Expression<T> Function($ClassGroupsAnnotationComposer a) f,
+  ) {
+    final $ClassGroupsAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.classGroups,
+      getReferencedColumn: (t) => t.periodModel,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ClassGroupsAnnotationComposer(
+            $db: $db,
+            $table: $db.classGroups,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $PeriodModelsTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          PeriodModels,
+          PeriodModel,
+          $PeriodModelsFilterComposer,
+          $PeriodModelsOrderingComposer,
+          $PeriodModelsAnnotationComposer,
+          $PeriodModelsCreateCompanionBuilder,
+          $PeriodModelsUpdateCompanionBuilder,
+          (PeriodModel, $PeriodModelsReferences),
+          PeriodModel,
+          PrefetchHooks Function({bool classGroupsRefs})
+        > {
+  $PeriodModelsTableManager(_$Database db, PeriodModels table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $PeriodModelsFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $PeriodModelsOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $PeriodModelsAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> validFrom = const Value.absent(),
+                Value<String> validTo = const Value.absent(),
+                Value<String> periodsJson = const Value.absent(),
+                Value<int> archived = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PeriodModelsCompanion(
+                id: id,
+                name: name,
+                validFrom: validFrom,
+                validTo: validTo,
+                periodsJson: periodsJson,
+                archived: archived,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String validFrom,
+                required String validTo,
+                required String periodsJson,
+                Value<int> archived = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PeriodModelsCompanion.insert(
+                id: id,
+                name: name,
+                validFrom: validFrom,
+                validTo: validTo,
+                periodsJson: periodsJson,
+                archived: archived,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<PeriodModels, PeriodModel>(table),
+                  $PeriodModelsReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({classGroupsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (classGroupsRefs) db.classGroups],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (classGroupsRefs)
+                    await $_getPrefetchedDataByColumns<
+                      PeriodModel,
+                      PeriodModels,
+                      ClassGroup,
+                      ClassGroups
+                    >(
+                      currentTable: table,
+                      referencedTable: $PeriodModelsReferences
+                          ._classGroupsRefsTable(db),
+                      managerFromTypedResult: (p0) => $PeriodModelsReferences(
+                        db,
+                        table,
+                        p0,
+                      ).classGroupsRefs,
+                      currentColumn: 'id',
+                      referencedColumn: 'period_model',
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $PeriodModelsProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      PeriodModels,
+      PeriodModel,
+      $PeriodModelsFilterComposer,
+      $PeriodModelsOrderingComposer,
+      $PeriodModelsAnnotationComposer,
+      $PeriodModelsCreateCompanionBuilder,
+      $PeriodModelsUpdateCompanionBuilder,
+      (PeriodModel, $PeriodModelsReferences),
+      PeriodModel,
+      PrefetchHooks Function({bool classGroupsRefs})
+    >;
 typedef $ClassGroupsCreateCompanionBuilder = ClassGroupsCompanion Function({
   required String id,
   required String course,
@@ -20565,6 +22356,8 @@ typedef $ClassGroupsCreateCompanionBuilder = ClassGroupsCompanion Function({
   required String grade,
   required String shift,
   required int capacity,
+  Value<String> attendanceMode,
+  Value<String?> periodModel,
   Value<int> archived,
   required String created,
   required String updated,
@@ -20580,6 +22373,8 @@ typedef $ClassGroupsUpdateCompanionBuilder = ClassGroupsCompanion Function({
   Value<String> grade,
   Value<String> shift,
   Value<int> capacity,
+  Value<String> attendanceMode,
+  Value<String?> periodModel,
   Value<int> archived,
   Value<String> created,
   Value<String> updated,
@@ -20602,6 +22397,23 @@ final class $ClassGroupsReferences
       $_db.courses,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_courseTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static PeriodModels _periodModelTable(_$Database db) => db.periodModels
+      .createAlias('class_groups__period_model__period_models__id');
+
+  $PeriodModelsProcessedTableManager? get periodModel {
+    final $_column = $_itemColumn<String>('period_model');
+    if ($_column == null) return null;
+    final manager = $PeriodModelsTableManager(
+      $_db,
+      $_db.periodModels,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_periodModelTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -20689,6 +22501,11 @@ class $ClassGroupsFilterComposer extends Composer<_$Database, ClassGroups> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get archived => $composableBuilder(
     column: $table.archived,
     builder: (column) => ColumnFilters(column),
@@ -20723,6 +22540,29 @@ class $ClassGroupsFilterComposer extends Composer<_$Database, ClassGroups> {
           }) => $CoursesFilterComposer(
             $db: $db,
             $table: $db.courses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $PeriodModelsFilterComposer get periodModel {
+    final $PeriodModelsFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.periodModel,
+      referencedTable: $db.periodModels,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PeriodModelsFilterComposer(
+            $db: $db,
+            $table: $db.periodModels,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -20826,6 +22666,11 @@ class $ClassGroupsOrderingComposer extends Composer<_$Database, ClassGroups> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get archived => $composableBuilder(
     column: $table.archived,
     builder: (column) => ColumnOrderings(column),
@@ -20860,6 +22705,29 @@ class $ClassGroupsOrderingComposer extends Composer<_$Database, ClassGroups> {
           }) => $CoursesOrderingComposer(
             $db: $db,
             $table: $db.courses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $PeriodModelsOrderingComposer get periodModel {
+    final $PeriodModelsOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.periodModel,
+      referencedTable: $db.periodModels,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PeriodModelsOrderingComposer(
+            $db: $db,
+            $table: $db.periodModels,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -20903,6 +22771,11 @@ class $ClassGroupsAnnotationComposer extends Composer<_$Database, ClassGroups> {
   GeneratedColumn<int> get capacity =>
       $composableBuilder(column: $table.capacity, builder: (column) => column);
 
+  GeneratedColumn<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
 
@@ -20929,6 +22802,29 @@ class $ClassGroupsAnnotationComposer extends Composer<_$Database, ClassGroups> {
           }) => $CoursesAnnotationComposer(
             $db: $db,
             $table: $db.courses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $PeriodModelsAnnotationComposer get periodModel {
+    final $PeriodModelsAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.periodModel,
+      referencedTable: $db.periodModels,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $PeriodModelsAnnotationComposer(
+            $db: $db,
+            $table: $db.periodModels,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21004,6 +22900,7 @@ class $ClassGroupsTableManager
           ClassGroup,
           PrefetchHooks Function({
             bool course,
+            bool periodModel,
             bool enrollmentsRefs,
             bool journalsRefs,
           })
@@ -21029,6 +22926,8 @@ class $ClassGroupsTableManager
                 Value<String> grade = const Value.absent(),
                 Value<String> shift = const Value.absent(),
                 Value<int> capacity = const Value.absent(),
+                Value<String> attendanceMode = const Value.absent(),
+                Value<String?> periodModel = const Value.absent(),
                 Value<int> archived = const Value.absent(),
                 Value<String> created = const Value.absent(),
                 Value<String> updated = const Value.absent(),
@@ -21043,6 +22942,8 @@ class $ClassGroupsTableManager
                 grade: grade,
                 shift: shift,
                 capacity: capacity,
+                attendanceMode: attendanceMode,
+                periodModel: periodModel,
                 archived: archived,
                 created: created,
                 updated: updated,
@@ -21059,6 +22960,8 @@ class $ClassGroupsTableManager
                 required String grade,
                 required String shift,
                 required int capacity,
+                Value<String> attendanceMode = const Value.absent(),
+                Value<String?> periodModel = const Value.absent(),
                 Value<int> archived = const Value.absent(),
                 required String created,
                 required String updated,
@@ -21073,6 +22976,8 @@ class $ClassGroupsTableManager
                 grade: grade,
                 shift: shift,
                 capacity: capacity,
+                attendanceMode: attendanceMode,
+                periodModel: periodModel,
                 archived: archived,
                 created: created,
                 updated: updated,
@@ -21090,6 +22995,7 @@ class $ClassGroupsTableManager
           prefetchHooksCallback:
               ({
                 course = false,
+                periodModel = false,
                 enrollmentsRefs = false,
                 journalsRefs = false,
               }) {
@@ -21123,6 +23029,17 @@ class $ClassGroupsTableManager
                                 ._courseTable(db),
                             referencedColumn: $ClassGroupsReferences
                                 ._courseTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (periodModel) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.periodModel,
+                            referencedTable: $ClassGroupsReferences
+                                ._periodModelTable(db),
+                            referencedColumn: $ClassGroupsReferences
+                                ._periodModelTable(db)
                                 .id,
                           ) as T;
                         }
@@ -21193,6 +23110,7 @@ typedef $ClassGroupsProcessedTableManager =
       ClassGroup,
       PrefetchHooks Function({
         bool course,
+        bool periodModel,
         bool enrollmentsRefs,
         bool journalsRefs,
       })
@@ -23278,8 +25196,7 @@ typedef $JournalsCreateCompanionBuilder = JournalsCompanion Function({
   required String id,
   required String classGroup,
   required String subject,
-  required String teacher,
-  Value<String?> component,
+  required String component,
   Value<int> revision,
   Value<int> rowid,
 });
@@ -23287,8 +25204,7 @@ typedef $JournalsUpdateCompanionBuilder = JournalsCompanion Function({
   Value<String> id,
   Value<String> classGroup,
   Value<String> subject,
-  Value<String> teacher,
-  Value<String?> component,
+  Value<String> component,
   Value<int> revision,
   Value<int> rowid,
 });
@@ -23314,29 +25230,12 @@ final class $JournalsReferences
     );
   }
 
-  static Users _teacherTable(_$Database db) =>
-      db.users.createAlias('journals__teacher__users__id');
-
-  $UsersProcessedTableManager get teacher {
-    final $_column = $_itemColumn<String>('teacher')!;
-
-    final manager = $UsersTableManager(
-      $_db,
-      $_db.users,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_teacherTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-
   static CourseComponents _componentTable(_$Database db) => db.courseComponents
       .createAlias('journals__component__course_components__id');
 
-  $CourseComponentsProcessedTableManager? get component {
-    final $_column = $_itemColumn<String>('component');
-    if ($_column == null) return null;
+  $CourseComponentsProcessedTableManager get component {
+    final $_column = $_itemColumn<String>('component')!;
+
     final manager = $CourseComponentsTableManager(
       $_db,
       $_db.courseComponents,
@@ -23402,6 +25301,26 @@ final class $JournalsReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<JournalTeachers, List<JournalTeacher>>
+  _journalTeachersRefsTable(_$Database db) => MultiTypedResultKey.fromTable(
+    db.journalTeachers,
+    aliasName: 'journals__id__journal_teachers__journal',
+  );
+
+  $JournalTeachersProcessedTableManager get journalTeachersRefs {
+    final manager = $JournalTeachersTableManager(
+      $_db,
+      $_db.journalTeachers,
+    ).filter((f) => f.journal.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _journalTeachersRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $JournalsFilterComposer extends Composer<_$Database, Journals> {
@@ -23441,29 +25360,6 @@ class $JournalsFilterComposer extends Composer<_$Database, Journals> {
           }) => $ClassGroupsFilterComposer(
             $db: $db,
             $table: $db.classGroups,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $UsersFilterComposer get teacher {
-    final $UsersFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.teacher,
-      referencedTable: $db.users,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $UsersFilterComposer(
-            $db: $db,
-            $table: $db.users,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23570,6 +25466,31 @@ class $JournalsFilterComposer extends Composer<_$Database, Journals> {
     );
     return f(composer);
   }
+
+  Expression<bool> journalTeachersRefs(
+    Expression<bool> Function($JournalTeachersFilterComposer f) f,
+  ) {
+    final $JournalTeachersFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalTeachers,
+      getReferencedColumn: (t) => t.journal,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalTeachersFilterComposer(
+            $db: $db,
+            $table: $db.journalTeachers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $JournalsOrderingComposer extends Composer<_$Database, Journals> {
@@ -23609,29 +25530,6 @@ class $JournalsOrderingComposer extends Composer<_$Database, Journals> {
           }) => $ClassGroupsOrderingComposer(
             $db: $db,
             $table: $db.classGroups,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $UsersOrderingComposer get teacher {
-    final $UsersOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.teacher,
-      referencedTable: $db.users,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $UsersOrderingComposer(
-            $db: $db,
-            $table: $db.users,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23696,29 +25594,6 @@ class $JournalsAnnotationComposer extends Composer<_$Database, Journals> {
           }) => $ClassGroupsAnnotationComposer(
             $db: $db,
             $table: $db.classGroups,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-
-  $UsersAnnotationComposer get teacher {
-    final $UsersAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.teacher,
-      referencedTable: $db.users,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $UsersAnnotationComposer(
-            $db: $db,
-            $table: $db.users,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23825,6 +25700,31 @@ class $JournalsAnnotationComposer extends Composer<_$Database, Journals> {
     );
     return f(composer);
   }
+
+  Expression<T> journalTeachersRefs<T extends Object>(
+    Expression<T> Function($JournalTeachersAnnotationComposer a) f,
+  ) {
+    final $JournalTeachersAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalTeachers,
+      getReferencedColumn: (t) => t.journal,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalTeachersAnnotationComposer(
+            $db: $db,
+            $table: $db.journalTeachers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $JournalsTableManager
@@ -23842,11 +25742,11 @@ class $JournalsTableManager
           Journal,
           PrefetchHooks Function({
             bool classGroup,
-            bool teacher,
             bool component,
             bool lessonsRefs,
             bool timetableSlotsRefs,
             bool assessmentsRefs,
+            bool journalTeachersRefs,
           })
         > {
   $JournalsTableManager(_$Database db, Journals table)
@@ -23865,15 +25765,13 @@ class $JournalsTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> classGroup = const Value.absent(),
                 Value<String> subject = const Value.absent(),
-                Value<String> teacher = const Value.absent(),
-                Value<String?> component = const Value.absent(),
+                Value<String> component = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalsCompanion(
                 id: id,
                 classGroup: classGroup,
                 subject: subject,
-                teacher: teacher,
                 component: component,
                 revision: revision,
                 rowid: rowid,
@@ -23883,15 +25781,13 @@ class $JournalsTableManager
                 required String id,
                 required String classGroup,
                 required String subject,
-                required String teacher,
-                Value<String?> component = const Value.absent(),
+                required String component,
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalsCompanion.insert(
                 id: id,
                 classGroup: classGroup,
                 subject: subject,
-                teacher: teacher,
                 component: component,
                 revision: revision,
                 rowid: rowid,
@@ -23907,11 +25803,11 @@ class $JournalsTableManager
           prefetchHooksCallback:
               ({
                 classGroup = false,
-                teacher = false,
                 component = false,
                 lessonsRefs = false,
                 timetableSlotsRefs = false,
                 assessmentsRefs = false,
+                journalTeachersRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -23919,6 +25815,7 @@ class $JournalsTableManager
                     if (lessonsRefs) db.lessons,
                     if (timetableSlotsRefs) db.timetableSlots,
                     if (assessmentsRefs) db.assessments,
+                    if (journalTeachersRefs) db.journalTeachers,
                   ],
                   addJoins:
                       <
@@ -23944,18 +25841,6 @@ class $JournalsTableManager
                                 ._classGroupTable(db),
                             referencedColumn: $JournalsReferences
                                 ._classGroupTable(db)
-                                .id,
-                          ) as T;
-                        }
-                        if (teacher) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.teacher,
-                            referencedTable: $JournalsReferences._teacherTable(
-                              db,
-                            ),
-                            referencedColumn: $JournalsReferences
-                                ._teacherTable(db)
                                 .id,
                           ) as T;
                         }
@@ -24029,6 +25914,25 @@ class $JournalsTableManager
                           referencedColumn: 'journal',
                           typedResults: items,
                         ),
+                      if (journalTeachersRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Journal,
+                          Journals,
+                          JournalTeacher,
+                          JournalTeachers
+                        >(
+                          currentTable: table,
+                          referencedTable: $JournalsReferences
+                              ._journalTeachersRefsTable(db),
+                          managerFromTypedResult: (p0) => $JournalsReferences(
+                            db,
+                            table,
+                            p0,
+                          ).journalTeachersRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'journal',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -24051,11 +25955,11 @@ typedef $JournalsProcessedTableManager =
       Journal,
       PrefetchHooks Function({
         bool classGroup,
-        bool teacher,
         bool component,
         bool lessonsRefs,
         bool timetableSlotsRefs,
         bool assessmentsRefs,
+        bool journalTeachersRefs,
       })
     >;
 typedef $LessonsCreateCompanionBuilder = LessonsCompanion Function({
@@ -24064,6 +25968,7 @@ typedef $LessonsCreateCompanionBuilder = LessonsCompanion Function({
   required String date,
   required int units,
   required String content,
+  Value<String> attendanceMode,
   required String state,
   Value<int> revision,
   required String created,
@@ -24076,6 +25981,7 @@ typedef $LessonsUpdateCompanionBuilder = LessonsCompanion Function({
   Value<String> date,
   Value<int> units,
   Value<String> content,
+  Value<String> attendanceMode,
   Value<String> state,
   Value<int> revision,
   Value<String> created,
@@ -24166,6 +26072,11 @@ class $LessonsFilterComposer extends Composer<_$Database, Lessons> {
 
   ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24291,6 +26202,11 @@ class $LessonsOrderingComposer extends Composer<_$Database, Lessons> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get state => $composableBuilder(
     column: $table.state,
     builder: (column) => ColumnOrderings(column),
@@ -24354,6 +26270,11 @@ class $LessonsAnnotationComposer extends Composer<_$Database, Lessons> {
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get attendanceMode => $composableBuilder(
+    column: $table.attendanceMode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get state =>
       $composableBuilder(column: $table.state, builder: (column) => column);
@@ -24478,6 +26399,7 @@ class $LessonsTableManager
                 Value<String> date = const Value.absent(),
                 Value<int> units = const Value.absent(),
                 Value<String> content = const Value.absent(),
+                Value<String> attendanceMode = const Value.absent(),
                 Value<String> state = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<String> created = const Value.absent(),
@@ -24489,6 +26411,7 @@ class $LessonsTableManager
                 date: date,
                 units: units,
                 content: content,
+                attendanceMode: attendanceMode,
                 state: state,
                 revision: revision,
                 created: created,
@@ -24502,6 +26425,7 @@ class $LessonsTableManager
                 required String date,
                 required int units,
                 required String content,
+                Value<String> attendanceMode = const Value.absent(),
                 required String state,
                 Value<int> revision = const Value.absent(),
                 required String created,
@@ -24513,6 +26437,7 @@ class $LessonsTableManager
                 date: date,
                 units: units,
                 content: content,
+                attendanceMode: attendanceMode,
                 state: state,
                 revision: revision,
                 created: created,
@@ -24637,12 +26562,14 @@ typedef $AttendanceCreateCompanionBuilder = AttendanceCompanion Function({
   required String lesson,
   required String enrollment,
   required String status,
+  required int absences,
   Value<int> rowid,
 });
 typedef $AttendanceUpdateCompanionBuilder = AttendanceCompanion Function({
   Value<String> lesson,
   Value<String> enrollment,
   Value<String> status,
+  Value<int> absences,
   Value<int> rowid,
 });
 
@@ -24695,6 +26622,11 @@ class $AttendanceFilterComposer extends Composer<_$Database, Attendance> {
   });
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get absences => $composableBuilder(
+    column: $table.absences,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -24758,6 +26690,11 @@ class $AttendanceOrderingComposer extends Composer<_$Database, Attendance> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get absences => $composableBuilder(
+    column: $table.absences,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $LessonsOrderingComposer get lesson {
     final $LessonsOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -24815,6 +26752,9 @@ class $AttendanceAnnotationComposer extends Composer<_$Database, Attendance> {
   });
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get absences =>
+      $composableBuilder(column: $table.absences, builder: (column) => column);
 
   $LessonsAnnotationComposer get lesson {
     final $LessonsAnnotationComposer composer = $composerBuilder(
@@ -24894,11 +26834,13 @@ class $AttendanceTableManager
                 Value<String> lesson = const Value.absent(),
                 Value<String> enrollment = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<int> absences = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AttendanceCompanion(
                 lesson: lesson,
                 enrollment: enrollment,
                 status: status,
+                absences: absences,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -24906,11 +26848,13 @@ class $AttendanceTableManager
                 required String lesson,
                 required String enrollment,
                 required String status,
+                required int absences,
                 Value<int> rowid = const Value.absent(),
               }) => AttendanceCompanion.insert(
                 lesson: lesson,
                 enrollment: enrollment,
                 status: status,
+                absences: absences,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28135,6 +30079,704 @@ typedef $AbsenceJustificationsProcessedTableManager =
       AbsenceJustification,
       PrefetchHooks Function({bool requester, bool document, bool reviewer})
     >;
+typedef $InstitutionSettingsCreateCompanionBuilder =
+    InstitutionSettingsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String?> documentTemplate,
+      Value<int> revision,
+    });
+typedef $InstitutionSettingsUpdateCompanionBuilder =
+    InstitutionSettingsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<String?> documentTemplate,
+      Value<int> revision,
+    });
+
+final class $InstitutionSettingsReferences
+    extends
+        BaseReferences<_$Database, InstitutionSettings, InstitutionSetting> {
+  $InstitutionSettingsReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static DocumentTemplates _documentTemplateTable(_$Database db) =>
+      db.documentTemplates.createAlias(
+        'institution_settings__document_template__document_templates__id',
+      );
+
+  $DocumentTemplatesProcessedTableManager? get documentTemplate {
+    final $_column = $_itemColumn<String>('document_template');
+    if ($_column == null) return null;
+    final manager = $DocumentTemplatesTableManager(
+      $_db,
+      $_db.documentTemplates,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentTemplateTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $InstitutionSettingsFilterComposer
+    extends Composer<_$Database, InstitutionSettings> {
+  $InstitutionSettingsFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $DocumentTemplatesFilterComposer get documentTemplate {
+    final $DocumentTemplatesFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentTemplate,
+      referencedTable: $db.documentTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $DocumentTemplatesFilterComposer(
+            $db: $db,
+            $table: $db.documentTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $InstitutionSettingsOrderingComposer
+    extends Composer<_$Database, InstitutionSettings> {
+  $InstitutionSettingsOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $DocumentTemplatesOrderingComposer get documentTemplate {
+    final $DocumentTemplatesOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentTemplate,
+      referencedTable: $db.documentTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $DocumentTemplatesOrderingComposer(
+            $db: $db,
+            $table: $db.documentTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $InstitutionSettingsAnnotationComposer
+    extends Composer<_$Database, InstitutionSettings> {
+  $InstitutionSettingsAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  $DocumentTemplatesAnnotationComposer get documentTemplate {
+    final $DocumentTemplatesAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentTemplate,
+      referencedTable: $db.documentTemplates,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $DocumentTemplatesAnnotationComposer(
+            $db: $db,
+            $table: $db.documentTemplates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $InstitutionSettingsTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          InstitutionSettings,
+          InstitutionSetting,
+          $InstitutionSettingsFilterComposer,
+          $InstitutionSettingsOrderingComposer,
+          $InstitutionSettingsAnnotationComposer,
+          $InstitutionSettingsCreateCompanionBuilder,
+          $InstitutionSettingsUpdateCompanionBuilder,
+          (InstitutionSetting, $InstitutionSettingsReferences),
+          InstitutionSetting,
+          PrefetchHooks Function({bool documentTemplate})
+        > {
+  $InstitutionSettingsTableManager(_$Database db, InstitutionSettings table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $InstitutionSettingsFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $InstitutionSettingsOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $InstitutionSettingsAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> documentTemplate = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+              }) => InstitutionSettingsCompanion(
+                id: id,
+                name: name,
+                documentTemplate: documentTemplate,
+                revision: revision,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> documentTemplate = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+              }) => InstitutionSettingsCompanion.insert(
+                id: id,
+                name: name,
+                documentTemplate: documentTemplate,
+                revision: revision,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<InstitutionSettings, InstitutionSetting>(table),
+                  $InstitutionSettingsReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({documentTemplate = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (documentTemplate) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.documentTemplate,
+                        referencedTable: $InstitutionSettingsReferences
+                            ._documentTemplateTable(db),
+                        referencedColumn: $InstitutionSettingsReferences
+                            ._documentTemplateTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $InstitutionSettingsProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      InstitutionSettings,
+      InstitutionSetting,
+      $InstitutionSettingsFilterComposer,
+      $InstitutionSettingsOrderingComposer,
+      $InstitutionSettingsAnnotationComposer,
+      $InstitutionSettingsCreateCompanionBuilder,
+      $InstitutionSettingsUpdateCompanionBuilder,
+      (InstitutionSetting, $InstitutionSettingsReferences),
+      InstitutionSetting,
+      PrefetchHooks Function({bool documentTemplate})
+    >;
+typedef $JournalTeachersCreateCompanionBuilder =
+    JournalTeachersCompanion Function({
+      required String journal,
+      required String teacher,
+      required String validFrom,
+      required String validTo,
+      Value<String> assignment,
+      Value<int> rowid,
+    });
+typedef $JournalTeachersUpdateCompanionBuilder =
+    JournalTeachersCompanion Function({
+      Value<String> journal,
+      Value<String> teacher,
+      Value<String> validFrom,
+      Value<String> validTo,
+      Value<String> assignment,
+      Value<int> rowid,
+    });
+
+final class $JournalTeachersReferences
+    extends BaseReferences<_$Database, JournalTeachers, JournalTeacher> {
+  $JournalTeachersReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Journals _journalTable(_$Database db) =>
+      db.journals.createAlias('journal_teachers__journal__journals__id');
+
+  $JournalsProcessedTableManager get journal {
+    final $_column = $_itemColumn<String>('journal')!;
+
+    final manager = $JournalsTableManager(
+      $_db,
+      $_db.journals,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_journalTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static Users _teacherTable(_$Database db) =>
+      db.users.createAlias('journal_teachers__teacher__users__id');
+
+  $UsersProcessedTableManager get teacher {
+    final $_column = $_itemColumn<String>('teacher')!;
+
+    final manager = $UsersTableManager(
+      $_db,
+      $_db.users,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_teacherTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $JournalTeachersFilterComposer
+    extends Composer<_$Database, JournalTeachers> {
+  $JournalTeachersFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get validTo => $composableBuilder(
+    column: $table.validTo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get assignment => $composableBuilder(
+    column: $table.assignment,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $JournalsFilterComposer get journal {
+    final $JournalsFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journal,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalsFilterComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $UsersFilterComposer get teacher {
+    final $UsersFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.teacher,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $UsersFilterComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $JournalTeachersOrderingComposer
+    extends Composer<_$Database, JournalTeachers> {
+  $JournalTeachersOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get validFrom => $composableBuilder(
+    column: $table.validFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get validTo => $composableBuilder(
+    column: $table.validTo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get assignment => $composableBuilder(
+    column: $table.assignment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $JournalsOrderingComposer get journal {
+    final $JournalsOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journal,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalsOrderingComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $UsersOrderingComposer get teacher {
+    final $UsersOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.teacher,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $UsersOrderingComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $JournalTeachersAnnotationComposer
+    extends Composer<_$Database, JournalTeachers> {
+  $JournalTeachersAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get validFrom =>
+      $composableBuilder(column: $table.validFrom, builder: (column) => column);
+
+  GeneratedColumn<String> get validTo =>
+      $composableBuilder(column: $table.validTo, builder: (column) => column);
+
+  GeneratedColumn<String> get assignment => $composableBuilder(
+    column: $table.assignment,
+    builder: (column) => column,
+  );
+
+  $JournalsAnnotationComposer get journal {
+    final $JournalsAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journal,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $JournalsAnnotationComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $UsersAnnotationComposer get teacher {
+    final $UsersAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.teacher,
+      referencedTable: $db.users,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $UsersAnnotationComposer(
+            $db: $db,
+            $table: $db.users,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $JournalTeachersTableManager
+    extends
+        RootTableManager<
+          _$Database,
+          JournalTeachers,
+          JournalTeacher,
+          $JournalTeachersFilterComposer,
+          $JournalTeachersOrderingComposer,
+          $JournalTeachersAnnotationComposer,
+          $JournalTeachersCreateCompanionBuilder,
+          $JournalTeachersUpdateCompanionBuilder,
+          (JournalTeacher, $JournalTeachersReferences),
+          JournalTeacher,
+          PrefetchHooks Function({bool journal, bool teacher})
+        > {
+  $JournalTeachersTableManager(_$Database db, JournalTeachers table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $JournalTeachersFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $JournalTeachersOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $JournalTeachersAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> journal = const Value.absent(),
+                Value<String> teacher = const Value.absent(),
+                Value<String> validFrom = const Value.absent(),
+                Value<String> validTo = const Value.absent(),
+                Value<String> assignment = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalTeachersCompanion(
+                journal: journal,
+                teacher: teacher,
+                validFrom: validFrom,
+                validTo: validTo,
+                assignment: assignment,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String journal,
+                required String teacher,
+                required String validFrom,
+                required String validTo,
+                Value<String> assignment = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalTeachersCompanion.insert(
+                journal: journal,
+                teacher: teacher,
+                validFrom: validFrom,
+                validTo: validTo,
+                assignment: assignment,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<JournalTeachers, JournalTeacher>(table),
+                  $JournalTeachersReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({journal = false, teacher = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (journal) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.journal,
+                        referencedTable: $JournalTeachersReferences
+                            ._journalTable(db),
+                        referencedColumn: $JournalTeachersReferences
+                            ._journalTable(db)
+                            .id,
+                      ) as T;
+                    }
+                    if (teacher) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.teacher,
+                        referencedTable: $JournalTeachersReferences
+                            ._teacherTable(db),
+                        referencedColumn: $JournalTeachersReferences
+                            ._teacherTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $JournalTeachersProcessedTableManager =
+    ProcessedTableManager<
+      _$Database,
+      JournalTeachers,
+      JournalTeacher,
+      $JournalTeachersFilterComposer,
+      $JournalTeachersOrderingComposer,
+      $JournalTeachersAnnotationComposer,
+      $JournalTeachersCreateCompanionBuilder,
+      $JournalTeachersUpdateCompanionBuilder,
+      (JournalTeacher, $JournalTeachersReferences),
+      JournalTeacher,
+      PrefetchHooks Function({bool journal, bool teacher})
+    >;
 
 class $DatabaseManager {
   final _$Database _db;
@@ -28161,6 +30803,8 @@ class $DatabaseManager {
   $StudentAccessTableManager get studentAccess =>
       $StudentAccessTableManager(_db, _db.studentAccess);
   $CoursesTableManager get courses => $CoursesTableManager(_db, _db.courses);
+  $PeriodModelsTableManager get periodModels =>
+      $PeriodModelsTableManager(_db, _db.periodModels);
   $ClassGroupsTableManager get classGroups =>
       $ClassGroupsTableManager(_db, _db.classGroups);
   $EnrollmentsTableManager get enrollments =>
@@ -28189,4 +30833,8 @@ class $DatabaseManager {
       $AssessmentEventsTableManager(_db, _db.assessmentEvents);
   $AbsenceJustificationsTableManager get absenceJustifications =>
       $AbsenceJustificationsTableManager(_db, _db.absenceJustifications);
+  $InstitutionSettingsTableManager get institutionSettings =>
+      $InstitutionSettingsTableManager(_db, _db.institutionSettings);
+  $JournalTeachersTableManager get journalTeachers =>
+      $JournalTeachersTableManager(_db, _db.journalTeachers);
 }

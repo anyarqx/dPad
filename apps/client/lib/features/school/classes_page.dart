@@ -1,7 +1,9 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:forui/forui.dart';
 
 import '../../shared/api.dart';
+import '../../shared/record_selection.dart';
 import '../../shared/widgets.dart';
 import '../../shared/page_header.dart';
 import '../../shared/section_tabs.dart';
@@ -35,6 +37,35 @@ class _ClassesPageState extends State<ClassesPage> {
   String search = '', tab = 'Matrículas';
   String? year;
   Future<JsonMap>? detail;
+  final selection = RecordSelection();
+  @override
+  void dispose() {
+    selection.dispose();
+    super.dispose();
+  }
+
+  Future<void> batchEnrollment(List<JsonMap> roster, String action) async {
+    final rows = roster.where((e) => selection.ids.contains(e['id'])).toList();
+    if (rows.isEmpty) return;
+    final label = action == 'activate' ? 'Ativar' : 'Encerrar';
+    if (!await confirm(context, '$label ${rows.length} matrícula(s)?')) return;
+    try {
+      await widget.api.send('POST', 'bulk', {
+        'resource': 'enrollments',
+        'action': action,
+        'items': [
+          for (final e in rows) {'id': e['id'], 'revision': e['revision']},
+        ],
+      });
+      if (mounted) {
+        selection.clear();
+        refresh();
+      }
+    } catch (e) {
+      if (mounted) feedbackError(context, e);
+    }
+  }
+
   bool get manage =>
       widget.data['session']['user']['role'] == 'admin' ||
       widget.data['session']['user']['department'] == 'secretaria';
@@ -49,8 +80,13 @@ class _ClassesPageState extends State<ClassesPage> {
   @override
   void didUpdateWidget(covariant ClassesPage old) {
     super.didUpdateWidget(old);
-    if (old.groupId != widget.groupId || old.data != widget.data) load();
-    if (old.groupId != widget.groupId) tab = 'Matrículas';
+    if (old.groupId != widget.groupId || !mapEquals(old.data, widget.data)) {
+      load();
+    }
+    if (old.groupId != widget.groupId) {
+      tab = 'Matrículas';
+      selection.ids.clear();
+    }
   }
 
   void load() {
@@ -98,7 +134,7 @@ class _ClassesPageState extends State<ClassesPage> {
         refresh();
       }
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
@@ -185,88 +221,145 @@ class _ClassesPageState extends State<ClassesPage> {
                           user: JsonMap.from(widget.data['session']['user']),
                           canConfigure: configureJournals,
                         )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  '${roster.where((e) => e['state'] == 'Ativa').length} ativas · ${roster.where((e) => e['state'] == 'Em análise').length} em análise · ${group['capacity']} vagas',
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                                if (manage)
-                                  button(
-                                    'Matricular aluno',
-                                    () async {
-                                      if (await enrollDialog(
-                                            context,
-                                            widget.api,
-                                            List<JsonMap>.from(
-                                              widget.data['classes'],
-                                            ),
-                                            List<JsonMap>.from(
-                                              widget.data['students'],
-                                            ),
-                                            classGroup: group['id'],
-                                          ) ==
-                                          true) {
-                                        refresh();
-                                      }
-                                    },
-                                    icon: FLucideIcons.userPlus,
-                                    primary: true,
+                      : SelectionScope(
+                          selection: selection,
+                          order: [for (final e in roster) e['id']],
+                          builder: (c) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    '${roster.where((e) => e['state'] == 'Ativa').length} ativas · ${roster.where((e) => e['state'] == 'Em análise').length} em análise · ${group['capacity']} vagas',
+                                    style: const TextStyle(fontSize: 13),
                                   ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: roster.isEmpty
-                                  ? const Center(
-                                      child: Text(
-                                        'Nenhuma matrícula nesta turma. Cadastre um aluno ou selecione uma pasta existente.',
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      itemCount: roster.length,
-                                      separatorBuilder: (_, i) =>
-                                          const PixelDivider(),
-                                      itemBuilder: (c, i) {
-                                        final e = roster[i];
-                                        final canOpen = List<JsonMap>.from(
-                                          widget.data['students'],
-                                        ).any((p) => p['id'] == e['student']);
-                                        return ListTile(
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                vertical: 8,
+                                  if (manage)
+                                    button(
+                                      'Matricular aluno',
+                                      () async {
+                                        if (await enrollDialog(
+                                              context,
+                                              widget.api,
+                                              List<JsonMap>.from(
+                                                widget.data['classes'],
                                               ),
-                                          title: Text(
-                                            e['student_name'],
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            e['registration'] ??
-                                                'Sem identificação informada',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          trailing: badge(e['state']),
-                                          onTap: canOpen
-                                              ? () => widget.openStudent(
-                                                  e['student'],
-                                                )
-                                              : null,
-                                        );
+                                              List<JsonMap>.from(
+                                                widget.data['students'],
+                                              ),
+                                              classGroup: group['id'],
+                                            ) ==
+                                            true) {
+                                          refresh();
+                                        }
                                       },
+                                      icon: FLucideIcons.userPlus,
+                                      primary: true,
                                     ),
-                            ),
-                          ],
+                                ],
+                              ),
+                              if (manage && roster.isNotEmpty)
+                                SelectionToolbar(
+                                  selection: selection,
+                                  order: [for (final e in roster) e['id']],
+                                  actions: [
+                                    if (roster
+                                        .where(
+                                          (e) =>
+                                              selection.ids.contains(e['id']),
+                                        )
+                                        .every(
+                                          (e) => e['state'] == 'Em análise',
+                                        ))
+                                      TextButton(
+                                        onPressed: () =>
+                                            batchEnrollment(roster, 'activate'),
+                                        child: const Text(
+                                          'Ativar selecionadas',
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              const SizedBox(height: 16),
+                              Expanded(
+                                child: roster.isEmpty
+                                    ? const Center(
+                                        child: Text(
+                                          'Nenhuma matrícula nesta turma. Cadastre um aluno ou selecione uma pasta existente.',
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        itemCount: roster.length,
+                                        separatorBuilder: (_, i) =>
+                                            const PixelDivider(),
+                                        itemBuilder: (c, i) {
+                                          final e = roster[i];
+                                          final canOpen = List<JsonMap>.from(
+                                            widget.data['students'],
+                                          ).any((p) => p['id'] == e['student']);
+                                          final order = [
+                                            for (final item in roster)
+                                              item['id'] as String,
+                                          ];
+                                          return ListTile(
+                                            leading: manage
+                                                ? recordCheck(
+                                                    selection,
+                                                    e['id'],
+                                                    order,
+                                                  )
+                                                : null,
+                                            selected: selection.ids.contains(
+                                              e['id'],
+                                            ),
+                                            onLongPress: manage
+                                                ? () => selection.toggle(
+                                                    e['id'],
+                                                    order,
+                                                  )
+                                                : null,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 8,
+                                                ),
+                                            title: Text(
+                                              e['student_name'],
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            subtitle: Text(
+                                              e['registration'] ??
+                                                  'Sem identificação informada',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            trailing: badge(e['state']),
+                                            onTap: canOpen || manage
+                                                ? () {
+                                                    if (manage &&
+                                                        selection.intercept(
+                                                          e['id'],
+                                                          order,
+                                                        )) {
+                                                      return;
+                                                    }
+                                                    if (canOpen) {
+                                                      widget.openStudent(
+                                                        e['student'],
+                                                      );
+                                                    }
+                                                  }
+                                                : null,
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
                         ),
                 ),
               ],
@@ -608,6 +701,7 @@ class _ClassFormState extends State<ClassForm> {
       widget.courses.where((c) => c['archived'] == 0).firstOrNull?['id'];
   late String shift = widget.group?['shift'] ?? 'Matutino';
   late bool archived = widget.group?['archived'] == 1;
+  late String attendanceMode = widget.group?['attendance_mode'] ?? 'lesson';
   bool saving = false;
   String? error;
   @override
@@ -683,6 +777,10 @@ class _ClassFormState extends State<ClassForm> {
                 value: archived,
                 onChanged: saving ? null : (v) => setState(() => archived = v!),
               ),
+            selector('Frequência', attendanceMode, const [
+              DropdownMenuItem(value: 'lesson', child: Text('Por hora-aula')),
+              DropdownMenuItem(value: 'day', child: Text('Por dia letivo')),
+            ], (v) => setState(() => attendanceMode = v!)),
             if (error != null)
               Text(
                 error!,
@@ -718,6 +816,7 @@ class _ClassFormState extends State<ClassForm> {
                       'school_year': int.tryParse(year.text),
                       'period_label': period.text,
                       'grade': grade.text,
+                      'attendance_mode': attendanceMode,
                       'capacity': int.tryParse(capacity.text),
                       'shift': shift,
                       'archived': archived ? 1 : 0,

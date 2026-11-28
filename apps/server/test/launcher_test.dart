@@ -54,6 +54,49 @@ void main() {
     return server;
   }
 
+  test(
+    'troca a porta controlada e recupera a anterior se a nova estiver ocupada',
+    () async {
+      final host = LocalHost();
+      addTearDown(host.stop);
+      final first = await freePort();
+      final second = await freePort();
+      Future<Uri> start(int port) => host.start(
+        executable: executable,
+        dataDirectory: data.path,
+        port: port,
+      );
+      final old = await start(first);
+      final current = await start(second);
+      expect(current.port, second);
+      expect(
+        await http
+            .get(current.resolve('/health'))
+            .then((r) => jsonDecode(r.body)['port']),
+        second,
+      );
+      await expectLater(
+        http.get(old.resolve('/health')),
+        throwsA(isA<http.ClientException>()),
+      );
+      final occupied = await HttpServer.bind('127.0.0.1', 0);
+      addTearDown(() => occupied.close(force: true));
+      occupied.listen((r) {
+        r.response.write('Outra aplicação');
+        r.response.close();
+      });
+      await expectLater(start(occupied.port), throwsException);
+      expect(host.address, current);
+      expect((await http.get(current.resolve('/health'))).statusCode, 200);
+      expect(
+        (await http.get(Uri.parse('http://127.0.0.1:${occupied.port}/health')))
+            .body,
+        'Outra aplicação',
+      );
+      await host.stop();
+    },
+  );
+
   test('inicia, aguarda saúde própria, evita partida concorrente e persiste após reiniciar', () async {
     final port = await freePort();
     final server = launcher(port);

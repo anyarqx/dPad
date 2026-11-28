@@ -142,7 +142,7 @@ void main() {
     'instalação normal vazia e operador local, sem exemplos automáticos',
     () async {
       final session = jsonDecode((await call('GET', 'session')).body);
-      expect(session['demo'], false);
+      expect(session['test'], false);
       expect(session['user']['id'], 'local');
       expect((session['users'] as List).length, 1);
       for (final resource in ['students', 'documents', 'folders', 'requests']) {

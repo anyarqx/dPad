@@ -105,7 +105,8 @@ class Templates {
     manage(u);
     final documents = names(b, 'documents'),
         fields = names(b, 'extra_fields', max: 30),
-        identity = names(b, 'required_identity', max: 10);
+        identity = names(b, 'required_identity', max: 11)
+          ..remove('social_name');
     if (identity.any(
       (v) => ![
         'birth_date',

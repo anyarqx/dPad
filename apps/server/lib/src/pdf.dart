@@ -5,8 +5,13 @@ import 'font.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 
-Future<Uint8List> requestPdf(String name, String subject, String text) async {
-  final font = pw.Font.ttf(demoFontBytes);
+Future<Uint8List> requestPdf(
+  String name,
+  String subject,
+  String text, {
+  String institution = 'Instituição',
+}) async {
+  final font = pw.Font.ttf(pdfFontBytes);
   final doc = pw.Document(
     theme: pw.ThemeData.withFont(base: font, bold: font),
   );
@@ -15,7 +20,7 @@ Future<Uint8List> requestPdf(String name, String subject, String text) async {
       margin: const pw.EdgeInsets.all(48),
       build: (_) => [
         pw.Text(
-          'DO PAPEL AO DIGITAL',
+          institution,
           style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
         ),
         pw.Text('Registro de requerimento escolar'),
@@ -48,7 +53,7 @@ Future<Uint8List> requestPdf(String name, String subject, String text) async {
 }
 
 Future<Uint8List> reportPdf(Map<String, dynamic> report) async {
-  final font = pw.Font.ttf(demoFontBytes);
+  final font = pw.Font.ttf(pdfFontBytes);
   final doc = pw.Document(
     theme: pw.ThemeData.withFont(base: font, bold: font),
   );
@@ -173,13 +178,20 @@ Future<Uint8List> reportPdf(Map<String, dynamic> report) async {
               color: PdfColor.fromHex('#F7F9FA'),
             ),
             border: pw.TableBorder.all(color: PdfColors.grey400, width: .4),
-            headers: ['Data', 'Turma / disciplina', 'Aulas', 'Registro'],
+            headers: [
+              'Data',
+              'Turma / disciplina',
+              'Aulas',
+              'Faltas',
+              'Registro',
+            ],
             data: [
               for (final a in report['attendance'])
                 [
                   a['date'],
                   a['class_name'] + ' / ' + a['subject'],
                   a['units'].toString(),
+                  (a['absences'] ?? 0).toString(),
                   a['status'],
                 ],
             ],

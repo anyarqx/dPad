@@ -27,6 +27,8 @@ void main() {
   late Directory directory;
   final api = Api()..profile = 'aluno';
   final workflowApi = Api();
+  final maintenanceApi = Api();
+  final connection = Api();
   late JsonMap data;
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -54,14 +56,15 @@ void main() {
     await socket.close();
     api.base = 'http://127.0.0.1:$port';
     workflowApi.base = api.base;
+    maintenanceApi.base = api.base;
     server = await Process.start('dart', [
       'run',
       'bin/dPad_server.dart',
       '--data',
-      directory.path,
+      '${directory.path}/installation',
       '--port',
       '$port',
-      '--demo',
+      '--test',
       '--controlled',
     ], workingDirectory: '../server');
     server.stdout.listen((_) {});
@@ -107,6 +110,64 @@ void main() {
   }
 
   testWidgets(
+    'administração de testes usa Contas e acessos e repõe dados em Manutenção',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.runAsync(
+        () => application.preferences.setString('profile', 'admin'),
+      );
+      addTearDown(maintenanceApi.client.close);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [apiProvider.overrideWithValue(maintenanceApi)],
+          child: const application.PapelApp(),
+        ),
+      );
+      Future<void> waitForData() async {
+        for (var i = 0; i < 8; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 125)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await tester.pumpAndSettle();
+      }
+
+      await waitForData();
+      await tester.tap(find.text('Contas e acessos').first);
+      await waitForData();
+      expect(find.text('Cadastrar conta'), findsOneWidget);
+      expect(find.textContaining('Perfil de teste'), findsWidgets);
+      await tester.tap(find.text('Configurações'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aparência'));
+      await tester.pumpAndSettle();
+      expect(find.text('Restaurar dados fictícios'), findsNothing);
+      await tester.tap(find.text('Fechar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Servidor'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manutenção'));
+      await waitForData();
+      await tester.tap(find.text('Restaurar dados fictícios'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('registros atuais do ambiente'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox());
+      maintenanceApi.client.close();
+      await tester.pump(const Duration(seconds: 20));
+    },
+    skip: !uiEnabled,
+  );
+
+  testWidgets(
     'digitalização apresenta seleção real de imagens nos dois temas',
     (tester) async {
       await tester.pumpWidget(frame(const Scanner()));
@@ -144,6 +205,26 @@ void main() {
       throwsException,
     );
   });
+  test(
+    'validação de outro endereço descarta o perfil e a sessão anteriores',
+    () async {
+      connection
+        ..base = api.base
+        ..profile = 'aluno'
+        ..token = 'sessao-da-instalacao-anterior';
+      addTearDown(connection.client.close);
+      await connection.health('${api.base}/');
+      expect(connection.profile, 'aluno');
+      expect(connection.token, isNotNull);
+      await connection.health(
+        Uri.parse(api.base).replace(host: 'localhost').origin,
+      );
+      expect(connection.profile, 'local');
+      expect(connection.token, isNull);
+      final session = await connection.get('bootstrap');
+      expect(session['session']['test'], isTrue);
+    },
+  );
   test(
     'PDF de digitalização tem duas páginas renderizáveis pelo pdfrx',
     () async {
@@ -309,7 +390,7 @@ void main() {
       }
 
       Future<void> profile(String label) async {
-        await tester.tap(find.byKey(const ValueKey('demo-profile')));
+        await tester.tap(find.byKey(const ValueKey('test-profile')));
         await tester.pumpAndSettle();
         await tester.tap(find.text(label).last);
         await load();
@@ -379,20 +460,20 @@ void main() {
         'Declaração com dados fictícios para a feira.',
         attach: true,
       );
-      await profile('Marina Costa · secretaria');
+      await profile('Marina Costa · Secretaria');
       await open('Atendimento', declaration);
       await tap('Iniciar atendimento');
       await message('Pedir complemento', 'Informe a finalidade da declaração.');
-      await profile('Ana Oliveira · aluno');
+      await profile('Ana Oliveira · Aluno');
       await open('Solicitações', declaration);
       await message(
         'Responder pendência',
         'Finalidade: apresentação científica.',
       );
-      await profile('Marina Costa · secretaria');
+      await profile('Marina Costa · Secretaria');
       await open('Atendimento', declaration);
       await message('Concluir', 'Declaração preparada para demonstração.');
-      await profile('Ana Oliveira · aluno');
+      await profile('Ana Oliveira · Aluno');
       await open('Solicitações', declaration);
       expect(
         find.text('Declaração preparada para demonstração.'),
@@ -414,18 +495,18 @@ void main() {
         'Concluída',
       );
 
-      await profile('Júlia Santos · gremio');
+      await profile('Júlia Santos · Grêmio');
       const activity = 'Atividade do grêmio na feira';
       await create(
         activity,
         'Solicitamos o auditório para uma atividade fictícia.',
         activity: true,
       );
-      await profile('Paulo Alves · coordenacao');
+      await profile('Paulo Alves · Coordenação');
       await open('Atendimento', activity);
       await tap('Iniciar atendimento');
       await message('Concluir', 'Atividade demonstrativa autorizada.');
-      await profile('Júlia Santos · gremio');
+      await profile('Júlia Santos · Grêmio');
       await open('Solicitações', activity);
       expect(find.text('Atividade demonstrativa autorizada.'), findsOneWidget);
       expect(
@@ -488,7 +569,7 @@ void main() {
 
       await load();
       expect(
-        find.text('Do Papel ao Digital'),
+        find.text('dPad'),
         findsOneWidget,
         reason: tester
             .widgetList<Text>(find.byType(Text))
@@ -497,7 +578,7 @@ void main() {
       );
       await tester.tap(find.text('Arquivo de documentos').first);
       await load();
-      expect(find.text('Requerimento demonstrativo.pdf'), findsNothing);
+      expect(find.text('Requerimento demonstrativo.pdf'), findsOneWidget);
       await tester.tap(find.text('Meus documentos'));
       await load();
       expect(find.text('Requerimento demonstrativo.pdf'), findsOneWidget);
@@ -570,7 +651,7 @@ void main() {
       await tester.tap(find.text('Arquivo de documentos').last);
       await load();
       expect(find.text('Arquivo de documentos'), findsWidgets);
-      expect(find.byKey(const ValueKey('demo-profile')), findsNothing);
+      expect(find.byKey(const ValueKey('test-profile')), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 6));

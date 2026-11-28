@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show compute;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:crop_your_image/crop_your_image.dart';
@@ -11,12 +13,11 @@ import 'viewer.dart';
 
 class ScanResult {
   final Uint8List pdf;
-  final List<Uint8List> originals;
-  ScanResult(this.pdf, this.originals);
+  ScanResult(this.pdf);
 }
 
 Future<ScanResult?> scan(BuildContext c) =>
-    showDialog<ScanResult>(context: c, builder: (_) => const Scanner());
+    openEditor<ScanResult>(c, const Scanner(), width: 1080);
 
 class Scanner extends StatefulWidget {
   final List<Uint8List> initialImages;
@@ -27,12 +28,10 @@ class Scanner extends StatefulWidget {
 
 class _ScannerState extends State<Scanner> {
   final pages = <Uint8List>[];
-  final originals = <Uint8List>[];
   @override
   void initState() {
     super.initState();
     pages.addAll(widget.initialImages);
-    originals.addAll(widget.initialImages);
   }
 
   int selected = 0;
@@ -54,11 +53,10 @@ class _ScannerState extends State<Scanner> {
         }
         if (pages.length >= 30) throw Exception('Limite de 30 páginas.');
         pages.add(b);
-        originals.add(b);
       }
       if (mounted) setState(() {});
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
@@ -90,7 +88,7 @@ class _ScannerState extends State<Scanner> {
                         case CropSuccess(:final croppedImage):
                           Navigator.pop(c, croppedImage);
                         case CropFailure(:final cause):
-                          feedback(c, cause);
+                          feedbackError(c, cause);
                       }
                     },
                   ),
@@ -122,185 +120,210 @@ class _ScannerState extends State<Scanner> {
   }
 
   @override
-  Widget build(BuildContext c) => Dialog(
-    insetPadding: const EdgeInsets.all(24),
-    child: SizedBox(
-      width: 1050,
-      height: 760,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Digitalizar documento',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                IconButton(
-                  onPressed: busy ? null : () => Navigator.pop(c),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+  Widget build(BuildContext c) => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Digitalizar documento',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: pages.isEmpty
-                ? Center(
-                    child: button(
-                      'Selecionar imagens',
-                      add,
-                      icon: Icons.add_photo_alternate,
+            IconButton(
+              onPressed: busy ? null : () => Navigator.pop(c),
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+      ),
+      const Divider(height: 1),
+      Expanded(
+        child: pages.isEmpty
+            ? Center(
+                child: button(
+                  'Selecionar imagens',
+                  add,
+                  icon: Icons.add_photo_alternate,
+                ),
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    width: MediaQuery.sizeOf(c).width < 600 ? 72 : 112,
+                    child: ListView.builder(
+                      itemCount: pages.length,
+                      itemBuilder: (_, i) => ListTile(
+                        selected: i == selected,
+                        onTap: () => setState(() => selected = i),
+                        title: Image.memory(
+                          pages[i],
+                          height: MediaQuery.sizeOf(c).width < 600 ? 54 : 78,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          isAntiAlias: true,
+                        ),
+                        subtitle: Text('Página ${i + 1}'),
+                      ),
                     ),
-                  )
-                : Row(
-                    children: [
-                      SizedBox(
-                        width: 150,
-                        child: ListView.builder(
-                          itemCount: pages.length,
-                          itemBuilder: (_, i) => ListTile(
-                            selected: i == selected,
-                            onTap: () => setState(() => selected = i),
-                            title: Image.memory(
-                              pages[i],
-                              height: 95,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                              isAntiAlias: true,
-                            ),
-                            subtitle: Text('Página ${i + 1}'),
-                          ),
-                        ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: InteractiveViewer(
+                      child: Image.memory(
+                        pages[selected],
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        isAntiAlias: true,
                       ),
-                      const VerticalDivider(width: 1),
-                      Expanded(
-                        child: InteractiveViewer(
-                          child: Image.memory(
-                            pages[selected],
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            isAntiAlias: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                button('Adicionar', busy ? null : add, icon: Icons.add),
-                if (pages.isNotEmpty) ...[
-                  button('Recortar', busy ? null : crop, icon: Icons.crop),
-                  button(
-                    'Girar',
-                    busy
-                        ? null
-                        : () {
-                            final image = img.decodeImage(pages[selected])!;
-                            setState(
-                              () => pages[selected] = Uint8List.fromList(
-                                img.encodePng(img.copyRotate(image, angle: 90)),
-                              ),
-                            );
-                          },
-                    icon: Icons.rotate_right,
-                  ),
-                  button(
-                    'Anterior',
-                    !busy && selected > 0
-                        ? () {
-                            setState(() {
-                              final p = pages.removeAt(selected);
-                              pages.insert(--selected, p);
-                            });
-                          }
-                        : null,
-                  ),
-                  button(
-                    'Seguinte',
-                    !busy && selected < pages.length - 1
-                        ? () {
-                            setState(() {
-                              final p = pages.removeAt(selected);
-                              pages.insert(++selected, p);
-                            });
-                          }
-                        : null,
-                  ),
-                  button(
-                    'Remover',
-                    busy
-                        ? null
-                        : () => setState(() {
-                            pages.removeAt(selected);
-                            selected = selected.clamp(
-                              0,
-                              pages.isEmpty ? 0 : pages.length - 1,
-                            );
-                          }),
-                  ),
-                  button(
-                    'Prévia PDF',
-                    busy
-                        ? null
-                        : () async {
-                            setState(() => busy = true);
-                            try {
-                              final b = await generate();
-                              if (c.mounted) {
-                                await preview(c, b, 'Digitalização.pdf');
-                              }
-                            } catch (e) {
-                              if (c.mounted) feedback(c, e);
-                            } finally {
-                              if (mounted) setState(() => busy = false);
-                            }
-                          },
-                  ),
-                  button(
-                    'Usar PDF',
-                    busy
-                        ? null
-                        : () async {
-                            setState(() => busy = true);
-                            try {
-                              final b = await generate();
-                              if (c.mounted) {
-                                Navigator.pop(
-                                  c,
-                                  ScanResult(b, List.of(originals)),
-                                );
-                              }
-                            } catch (e) {
-                              if (c.mounted) feedback(c, e);
-                              if (mounted) setState(() => busy = false);
-                            }
-                          },
-                    primary: true,
-                    loading: busy,
+                    ),
                   ),
                 ],
+              ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            spacing: 8,
+            children: [
+              button('Adicionar', busy ? null : add, icon: Icons.add),
+              if (pages.isNotEmpty) ...[
+                button('Recortar', busy ? null : crop, icon: Icons.crop),
+                button(
+                  'Girar',
+                  busy
+                      ? null
+                      : () {
+                          final image = img.decodeImage(pages[selected])!;
+                          setState(
+                            () => pages[selected] = Uint8List.fromList(
+                              img.encodePng(img.copyRotate(image, angle: 90)),
+                            ),
+                          );
+                        },
+                  icon: Icons.rotate_right,
+                ),
+                button(
+                  'Anterior',
+                  !busy && selected > 0
+                      ? () {
+                          setState(() {
+                            final p = pages.removeAt(selected);
+                            pages.insert(--selected, p);
+                          });
+                        }
+                      : null,
+                ),
+                button(
+                  'Seguinte',
+                  !busy && selected < pages.length - 1
+                      ? () {
+                          setState(() {
+                            final p = pages.removeAt(selected);
+                            pages.insert(++selected, p);
+                          });
+                        }
+                      : null,
+                ),
+                button(
+                  'Remover',
+                  busy
+                      ? null
+                      : () => setState(() {
+                          pages.removeAt(selected);
+                          selected = selected.clamp(
+                            0,
+                            pages.isEmpty ? 0 : pages.length - 1,
+                          );
+                        }),
+                ),
+                button(
+                  'Prévia PDF',
+                  busy
+                      ? null
+                      : () async {
+                          setState(() => busy = true);
+                          try {
+                            final b = await generate();
+                            if (c.mounted) {
+                              await preview(c, b, 'Digitalização.pdf');
+                            }
+                          } catch (e) {
+                            if (c.mounted) feedbackError(c, e);
+                          } finally {
+                            if (mounted) setState(() => busy = false);
+                          }
+                        },
+                ),
               ],
+            ],
+          ),
+        ),
+      ),
+      if (pages.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: button(
+              'Usar PDF',
+              busy
+                  ? null
+                  : () async {
+                      setState(() => busy = true);
+                      try {
+                        final b = await generate();
+                        if (c.mounted) {
+                          Navigator.pop(c, ScanResult(b));
+                        }
+                      } catch (e) {
+                        if (c.mounted) feedbackError(c, e);
+                        if (mounted) setState(() => busy = false);
+                      }
+                    },
+              primary: true,
+              loading: busy,
             ),
           ),
-        ],
-      ),
-    ),
+        ),
+    ],
   );
 }
 
-Future<Uint8List> generateScanPdf(List<Uint8List> pages) async {
+Future<Uint8List> generateScanPdf(List<Uint8List> pages) =>
+    compute(_scanPdf, pages);
+
+Future<Uint8List> _scanPdf(List<Uint8List> pages) async {
   final d = pw.Document();
   for (final bytes in pages) {
-    final image = pw.MemoryImage(bytes);
+    var decoded = img.decodeImage(bytes);
+    if (decoded == null || decoded.width * decoded.height > 32000000) {
+      throw const FormatException(
+        'Imagem inválida ou maior que 32 megapixels.',
+      );
+    }
+    decoded = img.bakeOrientation(decoded);
+    if (decoded.width > 2480 || decoded.height > 3508) {
+      decoded = img.copyResize(
+        decoded,
+        width: decoded.width > decoded.height ? 2480 : null,
+        height: decoded.height >= decoded.width ? 3508 : null,
+        interpolation: img.Interpolation.average,
+      );
+    }
+    final white = img.fill(
+      img.Image(width: decoded.width, height: decoded.height),
+      color: img.ColorRgb8(255, 255, 255),
+    );
+    img.compositeImage(white, decoded);
+    final image = pw.MemoryImage(
+      Uint8List.fromList(img.encodeJpg(white, quality: 90)),
+    );
+    await Future<void>.delayed(Duration.zero);
     d.addPage(
       pw.Page(
         build: (_) => pw.Center(child: pw.Image(image, fit: pw.BoxFit.contain)),

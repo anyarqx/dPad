@@ -125,6 +125,7 @@ class Installation {
     Map course, {
     String name = 'Turma de teste',
     String period = 'Anual',
+    String grade = 'Etapa inicial',
     int capacity = 40,
   }) async => Map<String, dynamic>.from(
     await send(
@@ -135,13 +136,43 @@ class Installation {
         'name': name,
         'school_year': DateTime.now().year,
         'period_label': period,
-        'grade': 'Etapa inicial',
+        'grade': grade,
         'shift': 'Matutino',
         'capacity': capacity,
       },
       status: 201,
     ),
   );
+  Future<Map<String, dynamic>> assignJournal(
+    Map group,
+    Map component,
+    Map teacher,
+  ) async {
+    final journals = List<Map<String, dynamic>>.from(
+      await send('GET', "classes/${group['id']}/journals"),
+    );
+    final journal = journals.singleWhere(
+      (j) => j['component'] == component['id'],
+    );
+    final year = group['school_year'];
+    return Map<String, dynamic>.from(
+      await send(
+        'POST',
+        "journals/${journal['id']}/teachers",
+        data: {
+          'revision': journal['revision'],
+          'teachers': [
+            {
+              'teacher': teacher['id'],
+              'valid_from': '$year-01-01',
+              'valid_to': '$year-12-31',
+            },
+          ],
+        },
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> student(
     Map group, {
     String name = 'Pessoa cadastrada',
@@ -491,22 +522,13 @@ void main() {
       data: {
         'course': course['id'],
         'subject': subject['id'],
-        'phase': 'Fase 1',
+        'phase': group['grade'],
         'hours': 40,
         'lesson_minutes': 45,
       },
       status: 201,
     );
-    final journal = await app.send(
-      'POST',
-      'journals',
-      data: {
-        'class_group': group['id'],
-        'component': component['id'],
-        'teacher': teacher['id'],
-      },
-      status: 201,
-    );
+    final journal = await app.assignJournal(group, component, teacher);
     await app.send(
       'GET',
       'journals/${journal['id']}',

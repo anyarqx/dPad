@@ -13,6 +13,9 @@ import 'school.dart';
 import 'templates.dart';
 import 'journals.dart';
 import 'academics.dart';
+import 'operations.dart';
+import 'maintenance.dart';
+import 'test_data.dart';
 
 Response json(Object? value, {int status = 200}) => Response(
   status,
@@ -39,13 +42,133 @@ Handler buildHandler(
   Map<String, dynamic> Function()? serverInfo,
 }) {
   final router = Router();
+  final operations = Operations(s);
+  final maintenance = Maintenance(s);
   Map<String, dynamic> user(Request r) =>
       r.context['user'] as Map<String, dynamic>;
+  const testUsers =
+      'SELECT u.* FROM users u LEFT JOIN credentials c ON c.user=u.id WHERE coalesce(c.enabled,1)=1';
+  Future<Map<String, dynamic>> session(Map<String, dynamic> u) async => {
+    'user': u,
+    'users': s.testMode
+        ? await s.db.rows('$testUsers ORDER BY u.name COLLATE NOCASE')
+        : [u],
+    'services': services,
+    'test': s.testMode,
+  };
   final auth = Auth(s);
   final school = School(s);
   final templates = Templates(s);
   final journals = Journals(s, school);
   final academic = Academics(s, school, journals);
+  router.get(
+    '/api/v1/maintenance/backups',
+    (Request r) async => json(await maintenance.list(user(r))),
+  );
+  router.post(
+    '/api/v1/maintenance/backups',
+    (Request r) async => json(await maintenance.create(user(r)), status: 201),
+  );
+  router.get('/api/v1/maintenance/backups/<id>/content', (
+    Request r,
+    String id,
+  ) async {
+    final f = await maintenance.download(user(r), id);
+    return Response.ok(
+      f.openRead(),
+      headers: {
+        'content-type': 'application/zip',
+        'content-length': '${await f.length()}',
+        'content-disposition': 'attachment; filename="dPad-$id.zip"',
+      },
+    );
+  });
+  router.post(
+    '/api/v1/maintenance/inspect',
+    (Request r) async =>
+        json(await maintenance.inspect(user(r), r.read()), status: 201),
+  );
+  router.post(
+    '/api/v1/maintenance/restore/<id>',
+    (Request r, String id) async =>
+        json(await maintenance.restore(user(r), id, await body(r))),
+  );
+  router.get(
+    '/api/v1/institution',
+    (Request r) async => json(await operations.institution()),
+  );
+  router.patch('/api/v1/institution', (Request r) async {
+    await operations.saveInstitution(user(r), await body(r));
+    return json(await operations.institution());
+  });
+  router.get(
+    '/api/v1/period-models',
+    (Request r) async => json(await operations.models(user(r))),
+  );
+  router.post('/api/v1/period-models', (Request r) async {
+    final id = await operations.saveModel(user(r), await body(r));
+    return json(await s.one('period_models', id), status: 201);
+  });
+  router.patch('/api/v1/period-models/<id>', (Request r, String id) async {
+    await operations.saveModel(user(r), await body(r), id: id);
+    return json(await s.one('period_models', id));
+  });
+  router.post(
+    '/api/v1/schedule/apply',
+    (Request r) async =>
+        json({'ids': await operations.applySchedule(user(r), await body(r))}),
+  );
+  router.post('/api/v1/journals/<id>/teachers', (Request r, String id) async {
+    await operations.assign(user(r), id, await body(r));
+    return json(await journals.detail(user(r), id));
+  });
+  router.post('/api/v1/journals/<id>/attendance', (Request r, String id) async {
+    await operations.attendance(user(r), id, await body(r));
+    return json(await journals.detail(user(r), id));
+  });
+  router.post('/api/v1/journals/<id>/grades', (Request r, String id) async {
+    await operations.grades(user(r), id, await body(r));
+    return json(await academic.assessments(user(r), id));
+  });
+  router.post(
+    '/api/v1/bulk',
+    (Request r) async => json(await operations.bulk(user(r), await body(r))),
+  );
+  router.post('/api/v1/students/<id>/account', (Request r, String id) async {
+    final person = await s.student(user(r), id), data = await body(r);
+    final role = data['role'] ?? 'aluno';
+    if (!['aluno', 'responsavel'].contains(role))
+      throw ApiError(400, 'Selecione aluno ou responsável.');
+    final account = await auth.createAccount(user(r), {
+      ...data,
+      'role': role,
+      'name': role == 'aluno'
+          ? person['name']
+          : s.optional(data, 'name').isNotEmpty
+          ? data['name']
+          : person['guardian'],
+      'students': [id],
+    });
+    return json(await s.one('users', account), status: 201);
+  });
+  router.get('/api/v1/bootstrap', (Request r) async {
+    final u = user(r);
+    final count = await s.db.rows(
+      s.manageStudents(u)
+          ? 'SELECT count(*) AS n FROM students'
+          : 'SELECT count(*) AS n FROM student_access WHERE user=?',
+      s.manageStudents(u) ? [] : [u['id']],
+    );
+    return json({
+      'session': await session(u),
+      'institution': await operations.institution(),
+      'classes': await school.classes(u),
+      'courses': await s.db.rows(
+        'SELECT * FROM courses ORDER BY name COLLATE NOCASE',
+      ),
+      'studentCount': count.single['n'],
+    });
+  });
   router.get(
     '/api/v1/academic/catalog',
     (Request r) async => json(await academic.catalog(user(r))),
@@ -119,7 +242,10 @@ Handler buildHandler(
   router.get(
     '/api/v1/students/<id>/report.pdf',
     (Request r, String id) async => Response.ok(
-      await reportPdf(await academic.report(user(r), id)),
+      await reportPdf({
+        ...await academic.report(user(r), id),
+        'institution': (await operations.institution())['name'],
+      }),
       headers: {'content-type': 'application/pdf'},
     ),
   );
@@ -164,10 +290,6 @@ Handler buildHandler(
     '/api/v1/classes/<id>/journals',
     (Request r, String id) async => json(await journals.list(user(r), id)),
   );
-  router.post('/api/v1/journals', (Request r) async {
-    final id = await journals.create(user(r), await body(r));
-    return json(await s.one('journals', id), status: 201);
-  });
   router.get(
     '/api/v1/journals/<id>',
     (Request r, String id) async => json(await journals.detail(user(r), id)),
@@ -208,8 +330,8 @@ Handler buildHandler(
   router.get(
     '/api/v1/auth/status',
     (Request r) async => json({
-      'demo': s.demo,
-      'setupRequired': !s.demo && !await auth.configured(),
+      'test': s.testMode,
+      'setupRequired': !s.testMode && !await auth.configured(),
       'setupLocal':
           (r.context['shelf.io.connection_info'] as HttpConnectionInfo?)
               ?.remoteAddress
@@ -218,10 +340,10 @@ Handler buildHandler(
     }),
   );
   router.post('/api/v1/auth/setup', (Request r) async {
-    if (s.demo)
+    if (s.testMode)
       throw ApiError(
         403,
-        'Saia do modo de demonstração para configurar contas.',
+        'Configure o primeiro administrador na instalação normal.',
       );
     final connection =
         r.context['shelf.io.connection_info'] as HttpConnectionInfo?;
@@ -243,7 +365,7 @@ Handler buildHandler(
     );
   });
   router.post('/api/v1/auth/logout', (Request r) async {
-    if (!s.demo) await auth.logout(r.headers['authorization']!);
+    if (!s.testMode) await auth.logout(r.headers['authorization']!);
     return json({'loggedOut': true});
   });
   router.post('/api/v1/auth/password', (Request r) async {
@@ -317,15 +439,7 @@ Handler buildHandler(
   );
   router.get(
     '/api/v1/session',
-    (Request r) async => json({
-      'user': user(r),
-      'users': await s.db.rows(
-        s.demo ? 'SELECT * FROM users' : 'SELECT * FROM users WHERE id=?',
-        s.demo ? [] : [user(r)['id']],
-      ),
-      'services': services,
-      'demo': s.demo,
-    }),
+    (Request r) async => json(await session(user(r))),
   );
   router.get('/api/v1/services', (Request r) => json(services));
   router.get('/api/v1/folders', (Request r) async {
@@ -361,18 +475,24 @@ Handler buildHandler(
   router.post('/api/v1/students', (Request r) async {
     final b = await body(r);
     final id = await s.db.transaction(() async {
-      final group = await s.one('class_groups', s.text(b, 'class_group'));
-      final course = await s.one('courses', group['course']);
+      final group = b['class_group'] == null || b['class_group'] == ''
+          ? null
+          : await s.one('class_groups', s.text(b, 'class_group'));
+      final course = group == null
+          ? null
+          : await s.one('courses', group['course']);
       final id = await s.createStudent(user(r), {
         ...b,
         'template': b.containsKey('template')
             ? b['template']
-            : course['template'],
+            : course?['template'] ??
+                  (await operations.institution())['document_template'],
       });
-      await school.enroll(user(r), {
-        'student': id,
-        'class_group': group['id'],
-      }, applyCourseTemplate: false);
+      if (group != null)
+        await school.enroll(user(r), {
+          'student': id,
+          'class_group': group['id'],
+        }, applyCourseTemplate: false);
       return id;
     });
     return json(await s.studentDetail(user(r), id), status: 201);
@@ -637,20 +757,28 @@ Handler buildHandler(
     final name = v['student'] == null
         ? u['name']
         : (await s.one('students', v['student']))['name'];
-    final bytes = await requestPdf(name, v['subject'], v['description']);
+    final bytes = await requestPdf(
+      name,
+      v['subject'],
+      v['description'],
+      institution: (await operations.institution())['name'],
+    );
     return Response.ok(bytes, headers: {'content-type': 'application/pdf'});
   });
   router.post('/api/v1/reset', (Request r) async {
-    if (!s.demo)
+    if (!s.testMode)
       throw ApiError(
         403,
-        'Restauração disponível apenas quando o servidor é iniciado com --demo.',
+        'A reposição de dados está disponível no ambiente de testes.',
       );
     if (!s.admin(user(r))) throw ApiError(403, 'Use o perfil Administração.');
     if ((await body(r))['confirmation'] != 'RESTAURAR')
       throw ApiError(400, 'Confirmação necessária.');
     final previous = await s.db.rows('SELECT storage FROM documents');
     await s.db.transaction(() async {
+      await s.db.exec(
+        "UPDATE institution_settings SET document_template=NULL,name='Instituição',revision=revision+1 WHERE id=1",
+      );
       for (final t in [
         'absence_justifications',
         'assessment_events',
@@ -660,6 +788,7 @@ Handler buildHandler(
         'lesson_events',
         'attendance',
         'lessons',
+        'journal_teachers',
         'journals',
         'teacher_profiles',
         'course_components',
@@ -681,21 +810,23 @@ Handler buildHandler(
       ]) {
         await s.db.exec('DELETE FROM $t');
       }
+      await s.db.exec('DELETE FROM period_models');
       while ((await s.db.rows('SELECT id FROM folders LIMIT 1')).isNotEmpty) {
         await s.db.exec(
           'DELETE FROM folders WHERE id NOT IN (SELECT parent FROM folders WHERE parent IS NOT NULL)',
         );
       }
       await s.db.exec('DELETE FROM users');
-      await s.seed(demo: true);
+      await s.seed(test: true);
     });
+    if (s.testMode) await seedTestAcademics(s);
     for (final d in previous) {
       final f = File('${s.files.path}/${d['storage']}');
       if (await f.exists()) await f.delete();
     }
     return json({'restored': true});
   });
-  return (r) async {
+  Future<Response> handle(Request r) async {
     final origin = r.headers['origin'];
     final originAllowed =
         origin == null ||
@@ -723,20 +854,20 @@ Handler buildHandler(
             'api/v1/auth/setup',
           ].contains(r.url.path)) {
         response = await router(r);
-      } else if (!s.demo) {
+      } else if (!s.testMode) {
         final authenticated = await auth.authenticate(
           r.headers['authorization'],
         );
         response = await router(r.change(context: {'user': authenticated}));
       } else {
         final profile = r.headers['x-profile'] ?? '';
-        var users = await s.db.rows('SELECT * FROM users WHERE id=?', [
-          profile,
-        ]);
-        if (users.isEmpty && r.url.path == 'api/v1/session')
-          users = await s.db.rows('SELECT * FROM users ORDER BY id LIMIT 1');
+        var users = await s.db.rows('$testUsers AND u.id=?', [profile]);
+        if (users.isEmpty &&
+            profile == 'local' &&
+            ['api/v1/session', 'api/v1/bootstrap'].contains(r.url.path))
+          users = await s.db.rows("$testUsers AND u.id='admin'");
         if (users.isEmpty)
-          throw ApiError(401, 'Selecione um perfil demonstrativo.');
+          throw ApiError(401, 'Selecione um perfil do ambiente de testes.');
         response = await router(r.change(context: {'user': users.first}));
       }
     } on ApiError catch (e) {
@@ -789,7 +920,9 @@ Handler buildHandler(
         'cache-control': 'no-store',
       },
     );
-  };
+  }
+
+  return (r) => maintenance.guard(r, () => handle(r));
 }
 
 String? detect(List<int> h) {

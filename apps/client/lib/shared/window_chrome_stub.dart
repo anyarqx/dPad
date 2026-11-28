@@ -6,6 +6,8 @@ bool get windowChromeEnabled => false;
 
 Future<void> configureWindow() async {}
 
+Future<void> toggleFullScreen() async {}
+
 class WindowFrame extends StatelessWidget {
   final Widget child;
   const WindowFrame({super.key, required this.child});

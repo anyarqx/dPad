@@ -15,11 +15,12 @@ extension _Navigation on _WorkspaceState {
       ('classes', 'Cursos e turmas', FLucideIcons.graduationCap),
       if (manage || u['department'] == 'coordenacao')
         ('academic', 'Org. Acadêmica', FLucideIcons.bookOpen),
+      ('documents', 'Arquivo de documentos', FLucideIcons.folderOpen),
       ('requests', 'Solicitações', FLucideIcons.inbox),
       if (u['department'] != null || u['role'] == 'admin')
         ('queue', 'Atendimento', FLucideIcons.clipboardList),
       if (manage) ('templates', 'Modelos de pasta', FLucideIcons.files),
-      if (u['role'] == 'admin' && data['session']['demo'] != true)
+      if (u['role'] == 'admin')
         ('accounts', 'Contas e acessos', FLucideIcons.users),
     ];
   }
@@ -40,7 +41,7 @@ extension _Navigation on _WorkspaceState {
     try {
       await api.logout();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     } finally {
       if (mounted) {
         drafts.clear();
@@ -72,7 +73,7 @@ extension _Navigation on _WorkspaceState {
       onSelected: (v) => v == 'password' ? changePassword() : logout(),
       itemBuilder: (_) => [
         PopupMenuItem(enabled: false, child: Text(user['name'])),
-        if (data['session']['demo'] != true)
+        if (data['session']['test'] != true)
           const PopupMenuItem(
             value: 'password',
             child: Text('Alterar minha senha'),
@@ -118,7 +119,10 @@ extension _Navigation on _WorkspaceState {
                         children: [
                           Expanded(
                             child: Text(
-                              'NAVEGAÇÃO',
+                              data['session']['test'] == true
+                                  ? 'Ambiente de testes'
+                                  : data['institution']?['name'] ??
+                                        'Instituição',
                               maxLines: 1,
                               style: TextStyle(
                                 fontSize: 11,
@@ -183,16 +187,10 @@ extension _Navigation on _WorkspaceState {
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                               ),
-                              trailing: item.$1 == 'students'
-                                  ? Text(
-                                      '${(data['students'] as List).length}',
-                                      style: const TextStyle(fontSize: 11),
-                                    )
-                                  : null,
                               onTap: () => go(item.$1),
                             ),
                     ),
-                  if (!compact) ...[
+                  if (!compact && years.isNotEmpty) ...[
                     const SizedBox(height: 22),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -323,24 +321,9 @@ extension _Navigation on _WorkspaceState {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (compact)
-                    IconButton(
-                      tooltip: 'Arquivo de documentos',
-                      isSelected: widget.section == 'documents',
-                      onPressed: () => go('documents'),
-                      icon: const Icon(FLucideIcons.folderOpen, size: 22),
-                    )
-                  else
-                    ListTile(
-                      dense: true,
-                      selected: widget.section == 'documents',
-                      leading: const Icon(FLucideIcons.folderOpen, size: 20),
-                      title: navText('Arquivo de documentos', size: 12),
-                      onTap: () => go('documents'),
-                    ),
                   const PixelDivider(),
                   if (!compact &&
-                      data['session']['demo'] == true &&
+                      data['session']['test'] == true &&
                       data['session']['users'].length > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -348,7 +331,7 @@ extension _Navigation on _WorkspaceState {
                         vertical: 8,
                       ),
                       child: DropdownButton<String>(
-                        key: const ValueKey('demo-profile'),
+                        key: const ValueKey('test-profile'),
                         value: api.profile,
                         isExpanded: true,
                         underline: const SizedBox.shrink(),
@@ -359,7 +342,7 @@ extension _Navigation on _WorkspaceState {
                             DropdownMenuItem(
                               value: u['id'] as String,
                               child: navText(
-                                '${u['name']} · ${u['role']}',
+                                '${u['name']} · ${roles[u['role']] ?? u['role']}',
                                 size: 12,
                               ),
                             ),

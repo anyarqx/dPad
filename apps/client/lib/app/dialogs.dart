@@ -23,7 +23,7 @@ extension _Dialogs on _WorkspaceState {
           for (final item in person['requirements']) item['type'] as String,
         ]);
       } catch (e) {
-        if (mounted) feedback(context, e);
+        if (mounted) feedbackError(context, e);
       }
     }
     if (!mounted) {
@@ -121,7 +121,7 @@ extension _Dialogs on _WorkspaceState {
                         refresh();
                         if (c.mounted) Navigator.pop(c);
                       } catch (e) {
-                        if (c.mounted) feedback(c, e);
+                        if (c.mounted) feedbackError(c, e);
                       } finally {
                         if (c.mounted) set(() => saving = false);
                       }
@@ -193,7 +193,7 @@ extension _Dialogs on _WorkspaceState {
                         refresh();
                         if (c.mounted) Navigator.pop(c);
                       } catch (e) {
-                        if (c.mounted) feedback(c, e);
+                        if (c.mounted) feedbackError(c, e);
                       } finally {
                         if (c.mounted) set(() => saving = false);
                       }
@@ -208,58 +208,62 @@ extension _Dialogs on _WorkspaceState {
   }
 
   Future<void> attachForm(JsonMap data, JsonMap r) async {
-    final docs = List<JsonMap>.from(data['documents']);
-    String? id = docs.firstOrNull?['id'];
-    await showEditorDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: const Text('Associar documento'),
-          content: SizedBox(
-            width: 440,
-            child: selector(
-              'Documento existente',
-              id,
-              docs
-                  .map(
-                    (d) => DropdownMenuItem(
-                      value: d['id'] as String,
-                      child: Text(d['name']),
-                    ),
-                  )
-                  .toList(),
-              (v) => set(() => id = v),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('Cancelar'),
-            ),
-            button(
-              'Associar',
-              id == null
-                  ? null
-                  : () async {
-                      try {
-                        await api.send(
-                          'POST',
-                          'requests/${r['id']}/documents',
-                          {'document': id},
-                        );
-                        await choose(r, 'request');
-                        refresh();
-                        if (c.mounted) Navigator.pop(c);
-                      } catch (e) {
-                        if (c.mounted) feedback(c, e);
-                      }
-                    },
-              primary: true,
-            ),
-          ],
-        ),
-      ),
+    final already = (r['documents'] as List? ?? []).map((d) => d['id']).toSet();
+    final docs = List<JsonMap>.from(data['documents'])
+        .where((d) => !already.contains(d['id']))
+        .toList();
+    final ids = await pickMany(
+      context,
+      title: 'Associar documentos',
+      choices: [
+        for (final d in docs)
+          SearchChoice(d['id'], d['name'], description: d['type']),
+      ],
     );
+    if (ids == null || ids.isEmpty || !mounted) return;
+    await run(() async {
+      await api.send('POST', 'bulk', {
+        'resource': 'documents',
+        'action': 'attach',
+        'items': [
+          for (final d in docs.where((d) => ids.contains(d['id'])))
+            {'id': d['id'], 'revision': d['revision']},
+        ],
+        'fields': {'request': r['id']},
+      });
+      await choose(r, 'request');
+    });
+  }
+
+  Future<void> connectHosted(String value) async {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null ||
+        uri.scheme != 'http' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment ||
+        (uri.path.isNotEmpty && uri.path != '/')) {
+      throw const FormatException(
+        'Para hospedar, informe HTTP e a porta local. Para HTTPS, conecte a um servidor existente.',
+      );
+    }
+    final local = await host(port: uri.port);
+    await connect(local.toString());
+    await preferences.setInt('hostPort', local.port);
+  }
+
+  Future<void> connect(String value) async {
+    final previous = api.base;
+    await api.health(value);
+    await preferences.setString('api', api.base);
+    if (previous != api.base) await preferences.remove('profile');
+    if (!mounted) return;
+    if (previous != api.base) {
+      drafts.clear();
+      go('students');
+    }
+    refresh();
   }
 
   Future<void> connection() async {
@@ -274,31 +278,33 @@ extension _Dialogs on _WorkspaceState {
           title: const Text('Conexão e hospedagem'),
           content: SizedBox(
             width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                field('Endereço do servidor', address),
-                Text(
-                  canHost
-                      ? 'Hospedagem local: 127.0.0.1:8080. Encerrar o aplicativo também encerra o servidor que ele iniciou.'
-                      : 'Informe o endereço da instalação da escola. No celular, localhost aponta para o próprio aparelho.',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      error!,
-                      style: TextStyle(color: Theme.of(c).colorScheme.error),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  field('Endereço do servidor', address),
+                  Text(
+                    canHost
+                        ? 'A hospedagem usa a porta informada e os dados desta máquina.'
+                        : 'Use o endereço e a porta da instalação.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        error!,
+                        style: TextStyle(color: Theme.of(c).colorScheme.error),
+                      ),
                     ),
-                  ),
-                if (testing)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: LinearProgressIndicator(),
-                  ),
-              ],
+                  if (testing)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: LinearProgressIndicator(),
+                    ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -317,10 +323,7 @@ extension _Dialogs on _WorkspaceState {
                           error = null;
                         });
                         try {
-                          await host();
-                          await api.health('http://127.0.0.1:8080');
-                          await preferences.setString('api', api.base);
-                          refresh();
+                          await connectHosted(address.text);
                           if (c.mounted) Navigator.pop(c);
                         } catch (e) {
                           set(() => error = e.toString());
@@ -339,9 +342,7 @@ extension _Dialogs on _WorkspaceState {
                         error = null;
                       });
                       try {
-                        await api.health(address.text);
-                        await preferences.setString('api', api.base);
-                        refresh();
+                        await connect(address.text);
                         if (c.mounted) Navigator.pop(c);
                       } catch (e) {
                         set(() => error = e.toString());
@@ -358,7 +359,7 @@ extension _Dialogs on _WorkspaceState {
     address.dispose();
   }
 
-  Future<void> settings(JsonMap? data) async {
+  Future<void> settings() async {
     await showEditorDialog(
       context: context,
       builder: (_) => ValueListenableBuilder(
@@ -413,27 +414,6 @@ extension _Dialogs on _WorkspaceState {
                               );
                             },
                           ),
-                          if (data?['session']?['demo'] == true &&
-                              data?['session']?['user']?['role'] == 'admin')
-                            button('Restaurar dados fictícios', () async {
-                              if (!await confirm(
-                                c,
-                                'Restaurar o banco demonstrativo? Os registros atuais serão removidos.',
-                              )) {
-                                return;
-                              }
-                              try {
-                                await api.send('POST', 'reset', {
-                                  'confirmation': 'RESTAURAR',
-                                });
-                                closeDetails();
-                                go('documents');
-                                refresh();
-                                if (c.mounted) Navigator.pop(c);
-                              } catch (e) {
-                                if (c.mounted) feedback(c, e);
-                              }
-                            }),
                         ],
                       ),
                     ),
@@ -460,7 +440,7 @@ extension _Dialogs on _WorkspaceState {
       info = await api.checkServer(api.base);
       result = 'Servidor disponível';
     } catch (e) {
-      result = 'Falha de conexão: $e';
+      result = e.toString();
     }
     if (!mounted) return;
     await showEditorDialog(
@@ -492,7 +472,7 @@ extension _Dialogs on _WorkspaceState {
                 const SizedBox(height: 12),
                 Text(
                   isHosting
-                      ? 'Hospedagem controlada por este aplicativo.'
+                      ? 'Hospedagem controlada: $hostedAddress. Esta conexão pode apontar para outro servidor.'
                       : 'Conexão a uma instalação existente.',
                 ),
               ],
@@ -674,7 +654,7 @@ extension _Dialogs on _WorkspaceState {
                 refresh();
                 if (c.mounted) Navigator.pop(c);
               } catch (e) {
-                if (c.mounted) feedback(c, e);
+                if (c.mounted) feedbackError(c, e);
               }
             }, primary: true),
           ],

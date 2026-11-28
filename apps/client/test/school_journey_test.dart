@@ -14,6 +14,7 @@ import 'package:dPad/shared/api.dart';
 import 'package:dPad/features/accounts/accounts_page.dart';
 import 'package:dPad/features/school/classes_page.dart';
 import 'package:dPad/features/school/journal_panel.dart';
+import 'package:dPad/features/school/grades_panel.dart';
 import 'package:dPad/features/students/student_form.dart';
 import 'package:dPad/features/students/students_page.dart';
 
@@ -206,6 +207,21 @@ void main() {
       await tap('Pastas de alunos');
       await tap('Cadastrar aluno');
       form = find.byType(StudentForm);
+      tester.view.physicalSize = const Size(390, 720);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 220);
+      await tester.pumpAndSettle();
+      final layoutError = tester.takeException();
+      expect(layoutError, isNull, reason: layoutError?.toString());
+      expect(
+        tester.getBottomRight(find.text('Salvar aluno')).dy,
+        lessThanOrEqualTo(500),
+      );
+      await capture('cadastro-janela-estreita');
+      tester.view.resetViewInsets();
+      tester.view.physicalSize = const Size(1440, 1000);
+      await tester.pumpAndSettle();
+      await tap('Sem matrícula');
+      await tap('Formação cadastrada · GRP-01');
       await tap('Sem modelo');
       await tap('Modelo cadastrado', last: true);
       await fill(form, 0, 'Pessoa matriculada');
@@ -213,7 +229,7 @@ void main() {
       await fill(form, 3, '15/04/2010');
       await fill(form, 7, 'Responsável informado');
       await fill(form, 12, 'Contato informado');
-      await tap('Criar pasta');
+      await tap('Salvar aluno');
       await tap('Pessoa matriculada');
       expect(find.text('CPF'), findsOneWidget);
       expect(find.text('Declaração'), findsOneWidget);
@@ -239,9 +255,8 @@ void main() {
       await fill(form, 3, 'senha do aluno para teste');
       await tap('Professor');
       await tap('Aluno', last: true);
-      await click(
-        find.descendant(of: form, matching: find.text('Pessoa matriculada')),
-      );
+      await click(find.byKey(const ValueKey('picker:Aluno')));
+      await tap('Pessoa matriculada', last: true);
       await tap('Salvar conta');
       final accounts = await tester.runAsync(() => api.get('accounts'));
       expect(accounts, hasLength(2));
@@ -266,7 +281,7 @@ void main() {
       await tap('Matrizes');
       await tap('Adicionar componente');
       form = find.byType(AlertDialog);
-      await fill(form, 0, 'Fase 1');
+      await fill(form, 0, 'Etapa inicial');
       await fill(form, 1, '40');
       await fill(form, 2, '45');
       await tap('Salvar');
@@ -275,10 +290,12 @@ void main() {
       await tap('Cursos e turmas');
       await tap('GRP-01');
       await tap('Diários');
-      await tap('Adicionar diário');
-      form = find.byType(AlertDialog);
-      await tap('Criar diário');
       await tap('Componente registrado');
+      await tap('Docentes');
+      await tap('Adicionar docentes');
+      await tap('Docente cadastrado');
+      await tap('Confirmar');
+      await tap('Salvar atribuições');
       await tap('Registrar aula');
       form = find.byType(LessonForm);
       await fill(form, 2, 'Conteúdo e atividades registrados pelo docente.');
@@ -292,15 +309,17 @@ void main() {
       await tap('Confirmar');
       expect(find.text('Publicado'), findsOneWidget);
       await capture('diario-publicado');
+      await tap('Frequência mensal');
+      await capture('frequencia-mensal');
+      await click(find.byType(CloseButton));
+      await load();
       await tap('Avaliações e notas');
       await tap('Lançar avaliação');
-      form = find.byType(AlertDialog);
+      form = find.byType(GradeForm);
       await fill(form, 0, 'Avaliação prática');
       await fill(form, 1, 'Unidade 1');
       await fill(form, 3, '10');
       await fill(form, 4, '1');
-      await tap('Pendente');
-      await tap('Lançada', last: true);
       await fill(form, 5, '8,5');
       await tap('Salvar rascunho');
       await tap('Avaliação prática');
@@ -309,9 +328,20 @@ void main() {
       await tap('Publicar notas');
       await tap('Confirmar');
       await capture('notas-publicadas');
+      await tap('Grade de notas');
+      await capture('grade-notas');
+      await click(find.byType(CloseButton));
+      await load();
       await tap('Horários');
       await tap('Adicionar horário');
       form = find.byType(AlertDialog);
+      await click(
+        find.byKey(const ValueKey('select:Diário / componente:null')),
+      );
+      await tap(
+        'Componente registrado · Etapa inicial · Docente cadastrado',
+        last: true,
+      );
       await fill(form, 0, '07:15');
       await fill(form, 1, '08:00');
       await fill(form, 2, '${DateTime.now().year}-01-01');
@@ -388,7 +418,7 @@ void main() {
       final studentState = tester.state(find.byType(StudentsPage));
       app.themeMode.value = ThemeMode.dark;
       tester.view.physicalSize = const Size(390, 844);
-      await tester.pumpAndSettle();
+      await load();
       expect(tester.state(find.byType(StudentsPage)), same(studentState));
       expect(tester.widget<TabBar>(find.byType(TabBar)).isScrollable, isTrue);
       expect(tester.takeException(), isNull);
@@ -430,6 +460,8 @@ void main() {
       await tap('Analisar justificativa');
       form = find.byType(AlertDialog);
       await fill(form, 0, 'Documento e motivo conferidos. Falta justificada.');
+      await click(find.byKey(const ValueKey('select:Resultado:null')));
+      await tap('Deferir justificativa');
       await tap('Salvar');
       expect(find.text('Deferida'), findsOneWidget);
       await capture('justificativa-analisada');
@@ -527,7 +559,7 @@ void main() {
             .firstWhere((d) => d['name'] == 'Ata da reunião.pdf')['folder'],
         parent['id'],
       );
-      expect(find.text('Ata da reunião.pdf'), findsNothing);
+      expect(find.text('Ata da reunião.pdf'), findsOneWidget);
       await tap('Atas de teste');
       expect(find.text('Ata da reunião.pdf'), findsOneWidget);
       await tap('Arquivo administrativo');
@@ -540,7 +572,19 @@ void main() {
       expect(find.text('Ata da reunião.pdf'), findsOneWidget);
       await tester.enterText(rootSearch, '');
       await tester.pumpAndSettle();
-      expect(find.text('Ata da reunião.pdf'), findsNothing);
+      expect(find.text('Ata da reunião.pdf'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.f1);
+      await tester.pumpAndSettle();
+      expect(find.text('Tecla'), findsOneWidget);
+      expect(find.text('Ação'), findsOneWidget);
+      expect(find.text('Alt + ↑'), findsOneWidget);
+      await capture('atalhos-de-teclado');
+      await click(find.text('Fechar'));
+      await tester.longPress(find.text('Ata da reunião.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 selecionado'), findsOneWidget);
+      await capture('arquivo-selecao');
+      await click(find.byTooltip('Limpar seleção (Esc)'));
       await click(find.byTooltip('Recolher navegação'));
       expect(app.preferences.getBool('sidebarCollapsed'), isTrue);
       expect(find.byTooltip('Expandir navegação'), findsOneWidget);

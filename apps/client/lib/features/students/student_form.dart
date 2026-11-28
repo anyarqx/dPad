@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../shared/api.dart';
 import '../../shared/widgets.dart';
 import '../../shared/localities.dart';
+import '../../shared/search_picker.dart';
 
 Future<bool?> editStudent(
   BuildContext context,
@@ -11,22 +12,19 @@ Future<bool?> editStudent(
   JsonMap? student,
   String? existingFolder,
 }) async {
-  final lists = await Future.wait([
-    api.get('classes'),
-    api.get('templates'),
-    api.get('courses'),
-  ]);
+  final lists = await Future.wait([api.get('bootstrap'), api.get('templates')]);
   if (!context.mounted) return false;
-  return showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => StudentForm(
+  final config = JsonMap.from(lists[0]);
+  return openEditor<bool>(
+    context,
+    StudentForm(
       api: api,
       student: student,
       existingFolder: existingFolder,
-      classes: List<JsonMap>.from(lists[0]),
+      classes: List<JsonMap>.from(config['classes']),
       templates: List<JsonMap>.from(lists[1]),
-      courses: List<JsonMap>.from(lists[2]),
+      courses: List<JsonMap>.from(config['courses']),
+      institution: JsonMap.from(config['institution']),
     ),
   );
 }
@@ -34,13 +32,16 @@ Future<bool?> editStudent(
 class StudentForm extends StatefulWidget {
   final Api api;
   final JsonMap? student;
-  final String? existingFolder;
+  final String? existingFolder, initialClass;
+  final JsonMap institution;
   final List<JsonMap> classes, templates, courses;
   const StudentForm({
     super.key,
     required this.api,
     this.student,
     this.existingFolder,
+    this.initialClass,
+    this.institution = const {},
     this.classes = const [],
     this.templates = const [],
     this.courses = const [],
@@ -96,9 +97,12 @@ class _StudentFormState extends State<StudentForm> {
   void initState() {
     super.initState();
     if (widget.student == null) {
-      classGroup = widget.classes
-          .where((g) => g['archived'] == 0)
-          .firstOrNull?['id'];
+      classGroup =
+          widget.classes.any(
+            (g) => g['id'] == widget.initialClass && g['archived'] == 0,
+          )
+          ? widget.initialClass
+          : null;
       selectClass(classGroup);
     } else {
       templateLabels.addAll(
@@ -113,7 +117,9 @@ class _StudentFormState extends State<StudentForm> {
     final course = widget.courses
         .where((c) => c['id'] == group?['course'])
         .firstOrNull;
-    selectTemplate(course?['template']);
+    selectTemplate(
+      course?['template'] ?? widget.institution['document_template'],
+    );
   }
 
   void selectTemplate(String? id) {
@@ -167,241 +173,200 @@ class _StudentFormState extends State<StudentForm> {
     super.dispose();
   }
 
+  Future<void> save() async {
+    if (fields['name']!.text.trim().isEmpty) {
+      setState(() => error = 'Informe o nome do aluno.');
+      return;
+    }
+    String birth = '';
+    if (fields['birth_date']!.text.trim().isNotEmpty) {
+      try {
+        birth = DateFormat('dd/MM/yyyy')
+            .parseStrict(fields['birth_date']!.text.trim())
+            .toIso8601String()
+            .substring(0, 10);
+      } catch (_) {
+        setState(() => error = 'Informe uma data de nascimento válida.');
+        return;
+      }
+    }
+    final entries = extra.where((e) => e.label.text.trim().isNotEmpty).toList();
+    if (entries.map((e) => e.label.text.trim().toLowerCase()).toSet().length !=
+        entries.length) {
+      setState(
+        () => error = 'Use nomes diferentes nas informações adicionais.',
+      );
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      final result = await widget.api.send(
+        widget.student == null ? 'POST' : 'PATCH',
+        widget.student == null
+            ? 'students'
+            : 'students/${widget.student!['id']}',
+        {
+          for (final e in fields.entries)
+            e.key: e.key == 'birth_date' ? birth : e.value.text.trim(),
+          'sex': sex,
+          'extra': {
+            for (final e in entries) e.label.text.trim(): e.value.text.trim(),
+          },
+          if (widget.student != null) 'revision': widget.student!['revision'],
+          if (widget.existingFolder != null) 'folder': widget.existingFolder,
+          if (widget.student == null) 'class_group': classGroup,
+          if (widget.student == null) 'template': template,
+        },
+      );
+      if (mounted) Navigator.pop(context, result.isNotEmpty);
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
   @override
-  Widget build(BuildContext c) => AlertDialog(
-    title: Text(
-      widget.student == null ? 'Abrir pasta de aluno' : 'Editar dados do aluno',
-    ),
-    content: SizedBox(
-      width: 620,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            sectionHeading(
-              'Identificação',
-              description: 'Campos com * são obrigatórios. Os demais podem ser preenchidos depois.',
-            ),
-            field('Nome completo *', fields['name']!),
-            field(
-              'Nome social',
-              fields['social_name']!,
-              tip: 'Preencha quando informado pela pessoa. Não substitui o nome do registro.',
-            ),
-            field('Matrícula ou identificação', fields['registration']!),
-            if (widget.student == null) ...[
-              if (widget.classes.where((g) => g['archived'] == 0).isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'Cadastre um curso e uma turma antes de abrir a pasta do aluno.',
-                  ),
-                ),
-              selector(
-                'Turma inicial',
-                classGroup,
-                widget.classes
-                    .where((g) => g['archived'] == 0)
-                    .map(
-                      (g) => DropdownMenuItem(
-                        value: g['id'] as String,
-                        child: Text(
-                          '${g['course_name']} · ${g['name']} · ${g['school_year']} / ${g['period_label']}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                (v) => setState(() => selectClass(v)),
+  Widget build(BuildContext c) => EditorPage(
+    title: widget.student == null ? 'Cadastrar aluno' : 'Editar aluno',
+    body: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          sectionHeading('Identificação'),
+          FormColumns(
+            children: [
+              field('Nome completo *', fields['name']!),
+              field(
+                'Nome social',
+                fields['social_name']!,
+                tip: 'Opcional. Informe somente quando solicitado pela pessoa.',
               ),
-              selector('Modelo de pasta', template ?? '', [
-                const DropdownMenuItem(value: '', child: Text('Sem modelo')),
+              field('Matrícula ou identificação', fields['registration']!),
+            ],
+          ),
+          if (widget.student == null) ...[
+            SearchPicker(
+              label: 'Matrícula inicial',
+              value: classGroup ?? '',
+              hint: 'Sem matrícula — cadastrar somente o aluno',
+              choices: [
+                SearchChoice('', 'Sem matrícula'),
+                for (final g in widget.classes.where((g) => g['archived'] == 0))
+                  SearchChoice(
+                    g['id'],
+                    '${g['course_name']} · ${g['name']}',
+                    description:
+                        '${g['school_year']} / ${g['period_label']} · ${g['shift']}',
+                  ),
+              ],
+              onChanged: (id) =>
+                  setState(() => selectClass(id.isEmpty ? null : id)),
+            ),
+            SearchPicker(
+              label: 'Modelo documental',
+              value: template ?? '',
+              choices: [
+                SearchChoice('', 'Sem modelo'),
                 for (final t in widget.templates.where(
                   (t) => t['archived'] == 0,
                 ))
-                  DropdownMenuItem(
-                    value: t['id'] as String,
-                    child: Text(t['name']),
-                  ),
-              ], (v) => setState(() => selectTemplate(v == '' ? null : v))),
-            ],
-            sectionHeading('Dados pessoais'),
-            field('Nascimento (DD/MM/AAAA)', fields['birth_date']!),
-            selector(
-              'Sexo informado',
-              sex,
-              [
-                const DropdownMenuItem(value: '', child: Text('Não informado')),
-                for (final item in ['Feminino', 'Masculino', 'Intersexo'])
-                  DropdownMenuItem(value: item, child: Text(item)),
+                  SearchChoice(t['id'], t['name']),
               ],
-              (v) => setState(() => sex = v ?? ''),
-              tip: 'Conforme informação fornecida no cadastro; não é inferido pelo nome.',
+              onChanged: (id) =>
+                  setState(() => selectTemplate(id.isEmpty ? null : id)),
             ),
-            LocalityField(controller: fields['birthplace']!, enabled: !saving),
-            field(
-              'Nacionalidade',
-              fields['nationality']!,
-              tip: 'Exemplo: Brasileira. Para outras nacionalidades, informe o país.',
-            ),
-            field(
-              'Filiação',
-              fields['parentage']!,
-              lines: 2,
-              tip: 'Nomes das pessoas que constam no registro de nascimento, quando disponíveis.',
-            ),
-            sectionHeading('Contato e responsável'),
-            AddressField(controller: fields['address']!, enabled: !saving),
-            field('Responsável', fields['guardian']!),
-            field('Telefone de contato', fields['phone']!),
-            field('E-mail', fields['email']!),
-            field('Observações', fields['notes']!, lines: 3),
-            const Text(
-              'Informações adicionais',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            for (final e in extra)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: field(
-                      'Informação',
-                      e.label,
-                      enabled: !templateLabels.contains(e.label.text),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: field('Valor', e.value)),
-                  if (!templateLabels.contains(e.label.text))
-                    IconButton(
-                      tooltip: 'Remover informação adicional',
-                      onPressed: saving
-                          ? null
-                          : () => setState(() {
-                              extra.remove(e);
-                              retired.addAll([e.label, e.value]);
-                            }),
-                      icon: const Icon(Icons.close, size: 18),
-                    ),
-                ],
-              ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: button(
-                'Adicionar informação',
-                saving
-                    ? null
-                    : () => setState(
-                        () => extra.add((
-                          label: TextEditingController(),
-                          value: TextEditingController(),
-                        )),
-                      ),
-                icon: Icons.add,
-              ),
-            ),
-            if (widget.student == null) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'A matrícula será aberta em análise. A secretaria confere as pendências antes da ativação.',
-                style: TextStyle(fontSize: 12, height: 1.5),
-              ),
-            ],
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  error!,
-                  style: TextStyle(color: Theme.of(c).colorScheme.error),
-                ),
-              ),
           ],
-        ),
+          sectionHeading('Dados pessoais'),
+          FormColumns(
+            children: [
+              field('Nascimento', fields['birth_date']!, kind: FieldKind.date),
+              selector('Sexo informado', sex, [
+                for (final value in ['', 'Feminino', 'Masculino', 'Intersexo'])
+                  DropdownMenuItem(
+                    value: value,
+                    child: Text(value.isEmpty ? 'Não informado' : value),
+                  ),
+              ], (v) => setState(() => sex = v ?? '')),
+              LocalityField(
+                controller: fields['birthplace']!,
+                enabled: !saving,
+              ),
+              field('Nacionalidade', fields['nationality']!),
+            ],
+          ),
+          field('Filiação', fields['parentage']!),
+          sectionHeading('Contato'),
+          FormColumns(
+            children: [
+              field('Responsável', fields['guardian']!),
+              field(
+                'Telefone de contato',
+                fields['phone']!,
+                kind: FieldKind.phone,
+              ),
+              field('E-mail', fields['email']!, kind: FieldKind.email),
+            ],
+          ),
+          AddressField(controller: fields['address']!, enabled: !saving),
+          field('Observações', fields['notes']!, lines: 2),
+          if (extra.isNotEmpty) sectionHeading('Informações adicionais'),
+          for (final e in extra)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: field(
+                    'Informação',
+                    e.label,
+                    enabled: !templateLabels.contains(e.label.text),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: field('Valor', e.value)),
+                if (!templateLabels.contains(e.label.text))
+                  IconButton(
+                    tooltip: 'Remover informação',
+                    onPressed: saving
+                        ? null
+                        : () => setState(() {
+                            extra.remove(e);
+                            retired.addAll([e.label, e.value]);
+                          }),
+                    icon: const Icon(Icons.close, size: 18),
+                  ),
+              ],
+            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: saving
+                  ? null
+                  : () => setState(
+                      () => extra.add((
+                        label: TextEditingController(),
+                        value: TextEditingController(),
+                      )),
+                    ),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Adicionar informação'),
+            ),
+          ),
+          if (error != null)
+            Text(
+              error!,
+              style: TextStyle(color: Theme.of(c).colorScheme.error),
+            ),
+        ],
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: saving ? null : () => Navigator.pop(c, false),
-        child: const Text('Cancelar'),
-      ),
       button(
-        widget.student == null ? 'Criar pasta' : 'Salvar alterações',
-        saving || (widget.student == null && classGroup == null)
-            ? null
-            : () async {
-                if (fields['name']!.text.trim().isEmpty) {
-                  setState(() => error = 'Informe o nome do aluno.');
-                  return;
-                }
-                String birth = '';
-                if (fields['birth_date']!.text.trim().isNotEmpty) {
-                  try {
-                    birth = DateFormat('dd/MM/yyyy')
-                        .parseStrict(fields['birth_date']!.text.trim())
-                        .toIso8601String()
-                        .substring(0, 10);
-                  } catch (_) {
-                    setState(
-                      () => error =
-                          'Informe uma data válida no formato DD/MM/AAAA.',
-                    );
-                    return;
-                  }
-                }
-                final entries = extra
-                    .where((e) => e.label.text.trim().isNotEmpty)
-                    .toList();
-                if (entries
-                        .map((e) => e.label.text.trim().toLowerCase())
-                        .toSet()
-                        .length !=
-                    entries.length) {
-                  setState(
-                    () => error =
-                        'Cada informação adicional deve ter um nome diferente.',
-                  );
-                  return;
-                }
-                setState(() {
-                  saving = true;
-                  error = null;
-                });
-                try {
-                  final result = await widget.api.send(
-                    widget.student == null ? 'POST' : 'PATCH',
-                    widget.student == null
-                        ? 'students'
-                        : 'students/${widget.student!['id']}',
-                    {
-                      for (final e in fields.entries)
-                        e.key: e.key == 'birth_date' ? birth : e.value.text,
-                      'sex': sex,
-                      'extra': {
-                        for (final e in entries)
-                          e.label.text.trim(): e.value.text.trim(),
-                      },
-                      if (widget.student != null)
-                        'revision': widget.student!['revision'],
-                      if (widget.existingFolder != null)
-                        'folder': widget.existingFolder,
-                      if (widget.student == null) 'class_group': classGroup,
-                      if (widget.student == null) 'template': template,
-                    },
-                  );
-                  if (c.mounted) Navigator.pop(c, result.isNotEmpty);
-                } catch (e) {
-                  if (mounted) {
-                    setState(
-                      () =>
-                          error = e.toString().replaceFirst('Exception: ', ''),
-                    );
-                  }
-                } finally {
-                  if (mounted) setState(() => saving = false);
-                }
-              },
+        widget.student == null ? 'Salvar aluno' : 'Salvar alterações',
+        saving ? null : save,
         primary: true,
         loading: saving,
       ),

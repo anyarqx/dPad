@@ -9,6 +9,6 @@ class AppLogo extends StatelessWidget {
     'assets/logo.svg',
     width: size,
     height: size,
-    semanticsLabel: 'Do Papel ao Digital',
+    semanticsLabel: 'dPad',
   );
 }

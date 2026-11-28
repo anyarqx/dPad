@@ -9,6 +9,8 @@ import '../../shared/page_header.dart';
 import '../../shared/search_picker.dart';
 import '../forms.dart';
 import '../scanner.dart';
+import 'document_selection.dart';
+import '../../shared/record_selection.dart';
 
 class ArchivePage extends StatefulWidget {
   final Api api;
@@ -17,7 +19,9 @@ class ArchivePage extends StatefulWidget {
   final ValueChanged<String?> openFolder;
   final ValueChanged<JsonMap> selectDocument;
   final VoidCallback changed;
-  final Future<void> Function(JsonMap) assignDocument, registerStudent;
+  final Future<void> Function(JsonMap) assignDocument,
+      registerStudent,
+      editDocument;
   const ArchivePage({
     super.key,
     required this.api,
@@ -28,6 +32,7 @@ class ArchivePage extends StatefulWidget {
     required this.changed,
     required this.assignDocument,
     required this.registerStudent,
+    required this.editDocument,
   });
   @override
   State<ArchivePage> createState() => _ArchivePageState();
@@ -35,10 +40,14 @@ class ArchivePage extends StatefulWidget {
 
 class _ArchivePageState extends State<ArchivePage> {
   String search = '';
+  final selection = RecordSelection();
+  final searchFocus = FocusNode();
   final searchController = TextEditingController();
   @override
   void dispose() {
     searchController.dispose();
+    searchFocus.dispose();
+    selection.dispose();
     super.dispose();
   }
 
@@ -48,6 +57,7 @@ class _ArchivePageState extends State<ArchivePage> {
     super.didUpdateWidget(old);
     if (old.folderId != widget.folderId) {
       search = '';
+      selection.ids.clear();
       searchController.clear();
     }
   }
@@ -70,7 +80,7 @@ class _ArchivePageState extends State<ArchivePage> {
       await fn();
       widget.changed();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     } finally {
       if (mounted) setState(() => working = false);
     }
@@ -183,13 +193,12 @@ class _ArchivePageState extends State<ArchivePage> {
         folders,
         widget.folderId ?? folders.firstOrNull?['id'],
         bytes: bytes?.pdf,
-        originals: bytes?.originals ?? [],
         filename: scanImages ? 'Digitalização.pdf' : null,
         fixedDestination: widget.folderId != null,
       );
       if (saved == true) widget.changed();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
@@ -226,7 +235,10 @@ class _ArchivePageState extends State<ArchivePage> {
           (d) =>
               folderIds.contains(d['folder']) &&
               (widget.folderId == null
-                  ? search.isNotEmpty
+                  ? (search.isNotEmpty ||
+                        all.any(
+                          (f) => f['id'] == d['folder'] && f['parent'] == null,
+                        ))
                   : d['folder'] == widget.folderId) &&
               normalizeSearch('${d['name']} ${d['type']}').contains(term),
         )
@@ -247,184 +259,224 @@ class _ArchivePageState extends State<ArchivePage> {
         ),
       );
     }
-    return PageLayout(
-      header: PageHeader(
-        title: current?['name'] ?? title,
-        subtitle: current == null
-            ? 'Documentos administrativos e anexos de trabalho.'
-            : null,
-        actions: [
-          IconButton(
-            tooltip: 'Atualizar arquivo',
-            onPressed: working ? null : widget.changed,
-            icon: const Icon(FLucideIcons.refreshCw, size: 18),
-          ),
-          button(
-            'Nova pasta',
-            working ? null : () => editFolder(),
-            icon: FLucideIcons.folderPlus,
-          ),
-          button(
-            'Importar arquivo',
-            working || all.isEmpty ? null : () => upload(),
-            icon: FLucideIcons.upload,
-            primary: true,
-          ),
-          button(
-            'Digitalizar',
-            working || all.isEmpty ? null : () => upload(scanImages: true),
-            icon: FLucideIcons.scanLine,
-          ),
-          if (current != null)
+    final order = docs.map((d) => d['id'] as String).toList();
+    final tools = DocumentSelection(
+      api: widget.api,
+      selection: selection,
+      documents: docs,
+      folders: List<JsonMap>.from(widget.data['folders']),
+      changed: widget.changed,
+      review: manager,
+    );
+    return SelectionScope(
+      selection: selection,
+      order: order,
+      onSearch: searchFocus.requestFocus,
+      onDelete: () => tools.apply(context, 'delete'),
+      onUp: current == null ? null : () => widget.openFolder(current['parent']),
+      onRename: () {
+        final item = docs
+            .where((d) => selection.ids.contains(d['id']))
+            .firstOrNull;
+        if (item != null) widget.editDocument(item);
+      },
+      builder: (c) => PageLayout(
+        header: PageHeader(
+          title: current?['name'] ?? title,
+          actions: [
             IconButton(
-              tooltip: 'Editar pasta',
-              onPressed: working ? null : () => editFolder(current),
-              icon: const Icon(FLucideIcons.pencil, size: 18),
+              tooltip: 'Atualizar arquivo',
+              onPressed: working ? null : widget.changed,
+              icon: const Icon(FLucideIcons.refreshCw, size: 18),
             ),
-        ],
-      ),
-      headerPrefix: [
-        if (current != null) ...[
-          FolderBreadcrumbs(
-            folders: all,
-            current: widget.folderId!,
-            open: widget.openFolder,
-            rootLabel: title,
-          ),
-          const SizedBox(height: 14),
-        ],
-      ],
-      children: [
-        FTextField(
-          key: const ValueKey('archive-search'),
-          hint: 'Buscar pasta ou documento',
-          control: FTextFieldControl.managed(
-            controller: searchController,
-            onChange: (v) => setState(() => search = v.text),
-          ),
+            button(
+              'Nova pasta',
+              working ? null : () => editFolder(),
+              icon: FLucideIcons.folderPlus,
+            ),
+            button(
+              'Importar arquivo',
+              working || all.isEmpty ? null : () => upload(),
+              icon: FLucideIcons.upload,
+              primary: true,
+            ),
+            button(
+              'Digitalizar',
+              working || all.isEmpty ? null : () => upload(scanImages: true),
+              icon: FLucideIcons.scanLine,
+            ),
+            if (current != null)
+              IconButton(
+                tooltip: 'Editar pasta',
+                onPressed: working ? null : () => editFolder(current),
+                icon: const Icon(FLucideIcons.pencil, size: 18),
+              ),
+          ],
         ),
-        const SizedBox(height: 10),
-        loadingLine(working),
-        Expanded(
-          child: childFolders.isEmpty && docs.isEmpty
-              ? Center(
-                  child: Text(
-                    search.isNotEmpty
-                        ? 'Nenhum resultado para esta busca.'
-                        : current != null
-                        ? 'Pasta vazia. Importe um arquivo ou adicione uma subpasta.'
-                        : 'Nenhuma pasta ou arquivo. Crie uma pasta para importar documentos.',
-                  ),
-                )
-              : ListView(
-                  children: [
-                    for (final f in childFolders)
-                      ListTile(
-                        leading: const Icon(FLucideIcons.folder, size: 22),
-                        title: Text(
-                          f['name'],
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+        headerPrefix: [
+          if (current != null) ...[
+            FolderBreadcrumbs(
+              folders: all,
+              current: widget.folderId!,
+              open: widget.openFolder,
+              rootLabel: title,
+            ),
+            const SizedBox(height: 14),
+          ],
+        ],
+        children: [
+          FTextField(
+            key: const ValueKey('archive-search'),
+            focusNode: searchFocus,
+            hint: 'Buscar pasta ou documento',
+            control: FTextFieldControl.managed(
+              controller: searchController,
+              onChange: (v) {
+                selection.clear();
+                setState(() => search = v.text);
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          loadingLine(working),
+          if (docs.isNotEmpty) tools,
+          Expanded(
+            child: childFolders.isEmpty && docs.isEmpty
+                ? Center(
+                    child: Text(
+                      search.isNotEmpty
+                          ? 'Nenhum resultado para esta busca.'
+                          : current != null
+                          ? 'Pasta vazia. Importe um arquivo ou adicione uma subpasta.'
+                          : 'Nenhuma pasta ou arquivo. Crie uma pasta para importar documentos.',
+                    ),
+                  )
+                : ListView(
+                    children: [
+                      for (final f in childFolders)
+                        ListTile(
+                          leading: const Icon(FLucideIcons.folder, size: 22),
+                          title: Text(
+                            f['name'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${current == null && f['area_name'] != null ? '${f['area_name']} · ' : ''}${all.where((r) => r['parent'] == f['id']).length} subpasta(s) · ${List<JsonMap>.from(widget.data['documents']).where((d) => d['folder'] == f['id']).length} arquivo(s)',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          onTap: () => widget.openFolder(f['id']),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: 'Opções da pasta ${f['name']}',
+                            onSelected: (v) async {
+                              if (v == 'edit') {
+                                editFolder(f);
+                              } else {
+                                final accepted = await confirm(
+                                  context,
+                                  'Excluir a pasta vazia “${f['name']}”?',
+                                );
+                                if (accepted && mounted) {
+                                  await action(() async {
+                                    await widget.api.send(
+                                      'DELETE',
+                                      'folders/${f['id']}',
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Renomear / mover'),
+                              ),
+                              PopupMenuItem(
+                                enabled:
+                                    !all.any(
+                                      (child) => child['parent'] == f['id'],
+                                    ) &&
+                                    !(widget.data['documents'] as List).any(
+                                      (doc) => doc['folder'] == f['id'],
+                                    ),
+                                value: 'delete',
+                                child: const Text('Excluir pasta vazia'),
+                              ),
+                            ],
                           ),
                         ),
-                        subtitle: Text(
-                          '${current == null && f['area_name'] != null ? '${f['area_name']} · ' : ''}${all.where((r) => r['parent'] == f['id']).length} subpasta(s) · ${List<JsonMap>.from(widget.data['documents']).where((d) => d['folder'] == f['id']).length} arquivo(s)',
-                          style: const TextStyle(fontSize: 12),
+                      if (childFolders.isNotEmpty) const PixelDivider(),
+                      if (widget.folderId == null && docs.isNotEmpty)
+                        sectionHeading(
+                          search.isEmpty
+                              ? 'Arquivos das pastas raiz'
+                              : 'Documentos encontrados',
                         ),
-                        onTap: () => widget.openFolder(f['id']),
-                        trailing: PopupMenuButton<String>(
-                          tooltip: 'Opções da pasta ${f['name']}',
-                          onSelected: (v) async {
-                            if (v == 'edit') {
-                              editFolder(f);
-                            } else {
-                              final accepted = await confirm(
-                                context,
-                                'Excluir a pasta vazia “${f['name']}”?',
-                              );
-                              if (accepted && mounted) {
-                                await action(() async {
-                                  await widget.api.send(
-                                    'DELETE',
-                                    'folders/${f['id']}',
-                                  );
-                                });
-                              }
+                      for (final d in docs)
+                        ListTile(
+                          leading: recordCheck(
+                            selection,
+                            d['id'],
+                            order,
+                            icon: Icon(
+                              d['mime'] == 'application/pdf'
+                                  ? FLucideIcons.fileText
+                                  : FLucideIcons.image,
+                              size: 22,
+                            ),
+                          ),
+                          title: Text(
+                            d['name'],
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          subtitle: Text(
+                            '${d['type']} · ${size(d['size'])}${current == null ? ' · ${folderPath(d['folder'])}' : ''}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: selection.ids.contains(d['id']),
+                          onLongPress: () => selection.toggle(d['id'], order),
+                          onTap: () {
+                            if (!selection.intercept(d['id'], order)) {
+                              widget.selectDocument(d);
                             }
                           },
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Renomear / mover'),
-                            ),
-                            PopupMenuItem(
-                              enabled:
-                                  !all.any(
-                                    (child) => child['parent'] == f['id'],
-                                  ) &&
-                                  !(widget.data['documents'] as List).any(
-                                    (doc) => doc['folder'] == f['id'],
-                                  ),
-                              value: 'delete',
-                              child: const Text('Excluir pasta vazia'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (childFolders.isNotEmpty) const PixelDivider(),
-                    if (widget.folderId == null && docs.isNotEmpty)
-                      sectionHeading('Documentos encontrados'),
-                    for (final d in docs)
-                      ListTile(
-                        leading: Icon(
-                          d['mime'] == 'application/pdf'
-                              ? FLucideIcons.fileText
-                              : FLucideIcons.image,
-                          size: 22,
-                        ),
-                        title: Text(
-                          d['name'],
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          '${d['type']} · ${size(d['size'])}${current == null ? ' · ${folderPath(d['folder'])}' : ''}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        onTap: () => widget.selectDocument(d),
-                        trailing:
-                            manager &&
-                                ((widget.data['students'] as List).isNotEmpty ||
-                                    adoptable.contains(d['folder']))
-                            ? PopupMenuButton<String>(
-                                tooltip: 'Vincular ${d['name']}',
-                                onSelected: (v) => v == 'existing'
-                                    ? widget.assignDocument(d)
-                                    : widget.registerStudent(d),
-                                itemBuilder: (_) => [
-                                  if ((widget.data['students'] as List)
-                                      .isNotEmpty)
-                                    const PopupMenuItem(
-                                      value: 'existing',
-                                      child: Text(
-                                        'Vincular a aluno cadastrado',
+                          trailing:
+                              manager &&
+                                  ((widget.data['students'] as List)
+                                          .isNotEmpty ||
+                                      adoptable.contains(d['folder']))
+                              ? PopupMenuButton<String>(
+                                  tooltip: 'Vincular ${d['name']}',
+                                  onSelected: (v) => v == 'existing'
+                                      ? widget.assignDocument(d)
+                                      : widget.registerStudent(d),
+                                  itemBuilder: (_) => [
+                                    if ((widget.data['students'] as List)
+                                        .isNotEmpty)
+                                      const PopupMenuItem(
+                                        value: 'existing',
+                                        child: Text(
+                                          'Vincular a aluno cadastrado',
+                                        ),
                                       ),
-                                    ),
-                                  if (adoptable.contains(d['folder']))
-                                    const PopupMenuItem(
-                                      value: 'folder',
-                                      child: Text(
-                                        'Cadastrar aluno com esta pasta',
+                                    if (adoptable.contains(d['folder']))
+                                      const PopupMenuItem(
+                                        value: 'folder',
+                                        child: Text(
+                                          'Cadastrar aluno com esta pasta',
+                                        ),
                                       ),
-                                    ),
-                                ],
-                              )
-                            : null,
-                      ),
-                  ],
-                ),
-        ),
-      ],
+                                  ],
+                                )
+                              : null,
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

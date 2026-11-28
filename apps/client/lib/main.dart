@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,7 +63,7 @@ class _PapelAppState extends State<PapelApp> {
       final light = appTheme(dark: false, touch: touch);
       final dark = appTheme(dark: true, touch: touch);
       return MaterialApp.router(
-        title: 'Do Papel ao Digital',
+        title: 'dPad',
         debugShowCheckedModeBanner: false,
         themeMode: mode,
         theme: materialTheme(light, dark: false),
@@ -73,7 +74,28 @@ class _PapelAppState extends State<PapelApp> {
         routerConfig: router,
         builder: (c, child) => FTheme(
           data: Theme.of(c).brightness == Brightness.dark ? dark : light,
-          child: WindowOverlay(child: WindowFrame(child: child!)),
+          child: CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.f1): () =>
+                  openSoftwareAction(SoftwareAction.help),
+              const SingleActivator(
+                LogicalKeyboardKey.keyK,
+                control: true,
+                alt: true,
+              ): () =>
+                  openSoftwareAction(SoftwareAction.navigation),
+              const SingleActivator(
+                LogicalKeyboardKey.keyB,
+                control: true,
+                alt: true,
+              ): () =>
+                  openSoftwareAction(SoftwareAction.sidebar),
+            },
+            child: Focus(
+              autofocus: true,
+              child: WindowOverlay(child: WindowFrame(child: child!)),
+            ),
+          ),
         ),
       );
     },

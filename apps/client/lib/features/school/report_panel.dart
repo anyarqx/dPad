@@ -70,7 +70,7 @@ class _ReportPanelState extends State<ReportPanel> {
         );
       }
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     } finally {
       if (mounted) setState(() => working = false);
     }
@@ -195,7 +195,7 @@ class _ReportPanelState extends State<ReportPanel> {
                             );
                           }
                         } catch (e) {
-                          if (mounted) feedback(context, e);
+                          if (mounted) feedbackError(context, e);
                         }
                       },
                     ),
@@ -304,7 +304,7 @@ class _ReportPanelState extends State<ReportPanel> {
                         ),
                       ),
                       subtitle: Text(
-                        '${a['date']} · ${a['class_name']} · ${a['units']} aula(s)',
+                        '${a['date']} · ${a['class_name']} · ${a['units']} aula(s) · ${a['absences'] ?? 0} falta(s)',
                         style: const TextStyle(fontSize: 12),
                       ),
                       trailing: badge(a['status']),

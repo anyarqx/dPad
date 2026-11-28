@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-final demoFontBytes = ByteData.sublistView(
+final pdfFontBytes = ByteData.sublistView(
   base64Decode(
     'AAEAAAASAQAABAAgR0RFRhQsFd4AAQ0UAAAARkdQT1OF2LzyAAENXAAAJjpHU1VC5ovonAABM5gAAAFETUFUSLBO8NIAATTcAAAC'
     '2E9TLzJqmg96AAECXAAAAFZjbWFwJeQjUgABArQAAABMY3Z0IABpHTkAAQkUAAAB/mZwZ21xNHZqAAEDAAAAAKtnYXNwAAcABwAB'

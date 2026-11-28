@@ -176,7 +176,7 @@ void main() {
 
       await load();
       expect(find.text('Nenhum aluno cadastrado'), findsOneWidget);
-      expect(find.byKey(const ValueKey('demo-profile')), findsNothing);
+      expect(find.byKey(const ValueKey('test-profile')), findsNothing);
       expect(find.text('Requerimento demonstrativo.pdf'), findsNothing);
       expect(find.text('Ana Oliveira'), findsNothing);
       await tap('Cadastrar aluno');
@@ -212,9 +212,20 @@ void main() {
       );
       Tooltip.dismissAllToolTips();
       await tester.pumpAndSettle();
+      await tap('Sem matrícula');
+      final choice = find.byKey(const ValueKey('picker-query'));
+      await tester.enterText(choice, '');
+      await tester.pumpAndSettle();
+      final list = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(ListTile),
+      );
+      final groupOption = tester.widgetList<ListTile>(list).last;
+      await tester.tap(find.byWidget(groupOption));
+      await tester.pumpAndSettle();
       await fillStudent('Nome completo *', 'Estudante cadastrado pelo usuário');
       await fillStudent('Matrícula ou identificação', 'REG-UI-01');
-      await fillStudent('Nascimento (DD/MM/AAAA)', '12/03/2010');
+      await fillStudent('Nascimento', '12/03/2010');
       await fillStudent('Responsável', 'Responsável informado');
       await fillStudent('Telefone de contato', 'Contato de teste');
       await fillStudent('E-mail', 'responsavel@example.invalid');
@@ -222,7 +233,7 @@ void main() {
       await tap('Adicionar informação');
       await fillStudent('Informação', 'Transporte');
       await fillStudent('Valor', 'Escolar');
-      await tap('Criar pasta');
+      await tap('Salvar aluno');
       expect(find.byType(StudentForm), findsNothing);
       final students = await tester.runAsync(
         () async => List<JsonMap>.from(await api.get('students')),
@@ -405,9 +416,9 @@ void main() {
       await tester.tap(find.byTooltip('Minimizar'));
       await tester.tap(find.byTooltip('Maximizar'));
       await tester.tap(find.byTooltip('Fechar janela'));
-      await tester.tap(find.text('Do Papel ao Digital'));
+      await tester.tap(find.text('dPad'));
       await tester.pump(const Duration(milliseconds: 80));
-      await tester.tap(find.text('Do Papel ao Digital'));
+      await tester.tap(find.text('dPad'));
       await tester.pumpAndSettle();
       expect([minimized, maximized, closed], [1, 2, 1]);
       expect(tester.takeException(), isNull);

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../shared/api.dart';
 import '../shared/folders.dart';
+import '../shared/search_picker.dart';
 import '../shared/widgets.dart';
 import '../shared/page_header.dart';
 import '../shared/app_theme.dart';
@@ -24,6 +25,7 @@ import '../features/students/students_page.dart';
 import '../features/students/student_form.dart';
 import '../features/accounts/auth_page.dart';
 import '../features/accounts/accounts_page.dart';
+import '../features/accounts/maintenance_page.dart';
 import '../features/school/classes_page.dart';
 import '../features/school/academic_page.dart';
 import '../features/students/templates_page.dart';
@@ -150,34 +152,67 @@ class _WorkspaceState extends ConsumerState<Workspace>
     if (!mounted || action == null) return;
     switch (action) {
       case SoftwareAction.appearance:
-        settings(ref.read(dataProvider).value);
+        settings();
       case SoftwareAction.connection:
         connection();
       case SoftwareAction.status:
         showServerStatus();
-      case SoftwareAction.host:
-        run(() async {
-          await host();
-          await api.health('http://127.0.0.1:8080');
-          await preferences.setString('api', api.base);
-          if (mounted) feedback(context, 'Servidor local disponível.');
-        });
       case SoftwareAction.stop:
         stopHosting();
       case SoftwareAction.activity:
         showOperationNotice(context);
+      case SoftwareAction.maintenance:
+        final data = ref.read(dataProvider).value;
+        if (data?['session']?['user']?['role'] == 'admin') {
+          go('maintenance');
+        } else {
+          feedback(
+            context,
+            'A manutenção exige uma conta de administração.',
+            error: true,
+          );
+        }
+      case SoftwareAction.help:
+        showShortcutTable(context, desktop: windowChromeEnabled);
+      case SoftwareAction.fullscreen:
+        toggleFullScreen();
+      case SoftwareAction.navigation:
+        final data = ref.read(dataProvider).value;
+        if (data != null) chooseSection(data);
+      case SoftwareAction.sidebar:
+        if (MediaQuery.sizeOf(context).width < 1050 || autoCompact) {
+          final scaffold = _scaffoldKey.currentState;
+          if (scaffold?.isDrawerOpen == true) {
+            scaffold?.closeDrawer();
+          } else {
+            scaffold?.openDrawer();
+          }
+        } else {
+          toggleSidebar();
+        }
       case SoftwareAction.licenses:
-        showLicensePage(
-          context: context,
-          applicationName: 'Do Papel ao Digital',
-        );
+        openEditor<void>(context, const LicensePage(applicationName: 'dPad'));
     }
+  }
+
+  Future<void> chooseSection(JsonMap data) async {
+    final section = await pickChoice(
+      context,
+      title: 'Ir para seção',
+      choices: [
+        for (final item in navigationItems(data))
+          SearchChoice(item.$1, item.$2),
+      ],
+      selected: widget.section,
+    );
+    if (mounted && section != null) go(section);
   }
 
   void stateChange(VoidCallback fn) => setState(fn);
 
   void refresh() {
     ref.invalidate(dataProvider);
+    ref.invalidate(resourceProvider);
   }
 
   void go(String section, [String? folder]) {
@@ -217,7 +252,7 @@ class _WorkspaceState extends ConsumerState<Workspace>
       await fn();
       refresh();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -244,7 +279,7 @@ class _WorkspaceState extends ConsumerState<Workspace>
     } catch (e) {
       if (mounted && ticket == selectionTicket) {
         closeDetails();
-        feedback(context, e);
+        feedbackError(context, e);
       }
     }
   }
@@ -283,9 +318,16 @@ class _WorkspaceState extends ConsumerState<Workspace>
                     const Icon(FLucideIcons.server, size: 36),
                     const SizedBox(height: 24),
                     Text(
-                      preferences.getString('api') == null
-                          ? 'Conectar à instalação'
-                          : 'Servidor indisponível',
+                      e is ApiException
+                          ? switch (e.failure) {
+                              ApiFailure.permission => 'Acesso não autorizado',
+                              ApiFailure.session => 'Sessão expirada',
+                              ApiFailure.incompatible => 'API incompatível',
+                              ApiFailure.address => 'Endereço inválido',
+                              ApiFailure.connection => 'Falha de conexão',
+                              _ => 'Não foi possível carregar',
+                            }
+                          : 'Não foi possível carregar',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 24,
@@ -293,31 +335,12 @@ class _WorkspaceState extends ConsumerState<Workspace>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Hospede os dados neste computador ou conecte-se à instalação da escola.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, height: 1.6),
-                    ),
-                    const SizedBox(height: 26),
-                    if (canHost)
-                      button(
-                        'Hospedar nesta máquina',
-                        busy
-                            ? null
-                            : () => run(() async {
-                                await host();
-                                await api.health('http://127.0.0.1:8080');
-                                await preferences.setString('api', api.base);
-                              }),
-                        icon: FLucideIcons.monitor,
-                        primary: true,
-                        loading: busy,
-                      ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     button(
-                      'Conectar a outro servidor',
+                      'Configurar conexão',
                       busy ? null : connection,
                       icon: FLucideIcons.network,
+                      primary: true,
                     ),
                     const SizedBox(height: 12),
                     TextButton(
@@ -362,6 +385,31 @@ class _WorkspaceState extends ConsumerState<Workspace>
             connection: connection,
           );
         }
+        final modules = {
+          for (final path in sectionResources[widget.section] ?? <String>[])
+            path: ref.watch(resourceProvider(path)),
+        };
+        final primary =
+            (mainSectionResources[widget.section] ?? const <String>[]).map(
+              (key) => modules[key]!,
+            );
+        final moduleLoading = primary.any((v) => v.isLoading && !v.hasValue);
+        final moduleError = primary.where((v) => v.hasError).firstOrNull?.error;
+        data = {
+          ...data,
+          for (final key in [
+            'students',
+            'folders',
+            'documents',
+            'requests',
+            'queue',
+            'templates',
+          ])
+            key: const <dynamic>[],
+          for (final entry in modules.entries)
+            entry.key == 'requests?queue=true' ? 'queue' : entry.key:
+                entry.value.value ?? const <dynamic>[],
+        };
         final width = MediaQuery.sizeOf(c).width;
         final wide = width >= 1050;
         final navWidth = navigationWidth;
@@ -371,11 +419,10 @@ class _WorkspaceState extends ConsumerState<Workspace>
                 280.0,
                 (width - navWidth - 520).clamp(280.0, 480.0),
               )
-            : width < 600
-            ? width
-            : 400.0;
+            : (width - 32).clamp(0.0, 400.0);
         return Scaffold(
           key: _scaffoldKey,
+          resizeToAvoidBottomInset: ModalRoute.isCurrentOf(c) != false,
           drawer: wide && !autoCompact
               ? null
               : Drawer(child: sidebar(data, forceExpanded: true)),
@@ -399,7 +446,9 @@ class _WorkspaceState extends ConsumerState<Workspace>
               ? null
               : AppBar(
                   title: Text(
-                    title,
+                    widget.section == 'students' && widget.student == null
+                        ? 'dPad'
+                        : title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -425,6 +474,14 @@ class _WorkspaceState extends ConsumerState<Workspace>
                             value: SoftwareAction.status,
                             child: Text('Verificar conexão'),
                           ),
+                          PopupMenuItem(
+                            value: SoftwareAction.maintenance,
+                            child: Text('Manutenção'),
+                          ),
+                          PopupMenuItem(
+                            value: SoftwareAction.help,
+                            child: Text('Ajuda'),
+                          ),
                         ],
                       ),
                     IconButton(
@@ -446,7 +503,22 @@ class _WorkspaceState extends ConsumerState<Workspace>
                   children: [
                     loadingLine(busy || state.isRefreshing),
                     Expanded(
-                      child: widget.section == 'students'
+                      child: moduleError != null
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('$moduleError'),
+                                  TextButton(
+                                    onPressed: refresh,
+                                    child: const Text('Tentar novamente'),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : moduleLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : widget.section == 'students'
                           ? StudentsPage(
                               api: api,
                               data: data,
@@ -456,7 +528,6 @@ class _WorkspaceState extends ConsumerState<Workspace>
                               selectDocument: (d) => choose(d, 'document'),
                               selectRequest: (r) => choose(r, 'request'),
                               requestDrafts: drafts,
-                              configureClasses: () => go('classes'),
                             )
                           : widget.section == 'documents'
                           ? ArchivePage(
@@ -467,6 +538,7 @@ class _WorkspaceState extends ConsumerState<Workspace>
                               changed: refresh,
                               selectDocument: (d) => choose(d, 'document'),
                               assignDocument: (d) => assignDocument(data, d),
+                              editDocument: (d) => documentForm(data, d),
                               registerStudent: (d) async {
                                 if (await editStudent(
                                       context,
@@ -501,6 +573,22 @@ class _WorkspaceState extends ConsumerState<Workspace>
                               data: data,
                               changed: refresh,
                             )
+                          : widget.section == 'maintenance'
+                          ? data['session']['user']['role'] == 'admin'
+                                ? MaintenancePage(
+                                    api: api,
+                                    data: data,
+                                    changed: refresh,
+                                    restored: () {
+                                      go('students');
+                                      refresh();
+                                    },
+                                  )
+                                : const Center(
+                                    child: Text(
+                                      'Manutenção exige administração.',
+                                    ),
+                                  )
                           : requests(data),
                     ),
                   ],
@@ -579,50 +667,37 @@ class _WorkspaceState extends ConsumerState<Workspace>
       PageHeader(title: text, actions: actions);
   Future<void> assignDocument(JsonMap data, JsonMap d) async {
     final students = List<JsonMap>.from(data['students']);
-    String id = students.first['id'];
-    await showEditorDialog(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: const Text('Vincular documento ao aluno'),
-          content: SizedBox(
-            width: 460,
-            child: selector(
-              'Pasta do aluno',
-              id,
-              students
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p['id'] as String,
-                      child: Text(p['name']),
-                    ),
-                  )
-                  .toList(),
-              (v) => set(() => id = v!),
-            ),
+    final id = await pickChoice(
+      context,
+      title: 'Vincular documento ao aluno',
+      choices: [
+        for (final p in students)
+          SearchChoice(
+            p['id'],
+            p['name'],
+            description: p['registration'] ?? '',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('Cancelar'),
-            ),
-            button(
-              'Vincular',
-              () => run(() async {
-                final target = students.firstWhere((p) => p['id'] == id);
-                await api.send('PATCH', 'documents/${d['id']}', {
-                  'revision': d['revision'],
-                  'folder': target['folder'],
-                });
-                if (c.mounted) Navigator.pop(c);
-                stateChange(() => selected = null);
-              }),
-              primary: true,
-            ),
-          ],
-        ),
-      ),
+      ],
     );
+    if (id == null || !mounted) return;
+    final student = students.firstWhere((p) => p['id'] == id);
+    if (!await confirm(
+      context,
+      'Mover “${d['name']}” para a pasta de ${student['name']}?',
+    )) {
+      return;
+    }
+    await run(() async {
+      await api.send('POST', 'bulk', {
+        'resource': 'documents',
+        'action': 'move',
+        'items': [
+          {'id': d['id'], 'revision': d['revision']},
+        ],
+        'fields': {'folder': student['folder']},
+      });
+      closeDetails();
+    });
   }
 
   Widget requests(JsonMap data) {

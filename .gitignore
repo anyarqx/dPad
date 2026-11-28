@@ -30,6 +30,7 @@ doc/api/
 !apps/client/pubspec.lock
 !apps/server/pubspec.lock
 /data/
+/data.test/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

@@ -50,22 +50,13 @@ void main() {
       data: {
         'course': course['id'],
         'subject': subject['id'],
-        'phase': 'Fase 1',
+        'phase': group['grade'],
         'hours': 40,
         'lesson_minutes': 45,
       },
       status: 201,
     );
-    journal = await app.send(
-      'POST',
-      'journals',
-      data: {
-        'class_group': group['id'],
-        'component': component['id'],
-        'teacher': teacher['id'],
-      },
-      status: 201,
-    );
+    journal = await app.assignJournal(group, component, teacher);
   });
   tearDown(() async => app.close());
 
@@ -315,7 +306,11 @@ void main() {
       };
       final first = await app.send('POST', 'schedule', data: slot, status: 201);
       await app.send('POST', 'schedule', data: slot, status: 409);
-      final anotherGroup = await app.group(course, name: 'Outra turma'),
+      final anotherGroup = await app.group(
+            course,
+            name: 'Outra turma',
+            grade: 'Fase 2',
+          ),
           wrongCourse = await app.course(name: 'Outro curso');
       final subject = await app.send(
         'POST',
@@ -335,26 +330,15 @@ void main() {
         },
         status: 201,
       );
-      final otherJournal = await app.send(
-        'POST',
-        'journals',
-        data: {
-          'class_group': anotherGroup['id'],
-          'component': component['id'],
-          'teacher': teacher['id'],
-        },
-        status: 201,
+      final otherJournal = await app.assignJournal(
+        anotherGroup,
+        component,
+        teacher,
       );
-      final wrongGroup = await app.group(wrongCourse);
-      await app.send(
-        'POST',
-        'journals',
-        data: {
-          'class_group': wrongGroup['id'],
-          'component': component['id'],
-          'teacher': teacher['id'],
-        },
-        status: 400,
+      final wrongGroup = await app.group(wrongCourse, grade: 'Fase 2');
+      expect(
+        await app.send('GET', route('classes', wrongGroup, '/journals')),
+        isEmpty,
       );
       await app.send(
         'PATCH',

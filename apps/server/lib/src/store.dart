@@ -19,7 +19,7 @@ class ApiError implements Exception {
 class Store {
   final Database db;
   final Directory files;
-  bool demo = false;
+  bool testMode = false;
   Store(this.db, this.files);
   Future<Map<String, dynamic>> one(String table, String id) async {
     final r = await db.rows('SELECT * FROM $table WHERE id=?', [id]);
@@ -190,13 +190,14 @@ class Store {
     [uuid.v4(), id, actor, message, now()],
   );
   Future<void> attach(Map u, String id, String doc) async {
-    await document(u, doc, edit: true);
-    await db.exec('INSERT OR IGNORE INTO attachments VALUES(?,?)', [id, doc]);
-    await event(
-      id,
-      u['id'],
-      'Documento associado: ${(await one('documents', doc))['name']}',
-    );
+    final d = await document(u, doc, edit: true);
+    if ((await db.rows(
+      'SELECT document FROM attachments WHERE request=? AND document=?',
+      [id, doc],
+    )).isNotEmpty)
+      return;
+    await db.exec('INSERT INTO attachments VALUES(?,?)', [id, doc]);
+    await event(id, u['id'], "Documento associado: ${d['name']}");
   }
 
   Future<String> createRequest(Map u, Map b) async {
@@ -318,11 +319,10 @@ class Store {
 
   Future<List<Map<String, dynamic>>> listStudents(Map u) async {
     final all = await db.rows(
-      "SELECT s.id,s.name,s.registration,s.folder,s.updated,s.birth_date,s.sex,s.social_name,s.birthplace,s.nationality,s.parentage,s.address,s.guardian,s.phone,s.email,s.extra_json,s.template_fields_json,(SELECT group_concat(g.name||' · '||c.name||' · '||e.school_year||' / '||e.period_label,'; ') FROM enrollments e JOIN class_groups g ON g.id=e.class_group JOIN courses c ON c.id=e.course WHERE e.student=s.id AND e.state IN ('Ativa','Em análise')) AS class_label,(SELECT count(*) FROM requirements r WHERE r.student=s.id) AS required_count,(SELECT count(*) FROM requirements r WHERE r.student=s.id AND EXISTS(SELECT 1 FROM documents d WHERE d.folder=s.folder AND d.type=r.type COLLATE NOCASE)) AS received_count,(SELECT count(*) FROM requirements r WHERE r.student=s.id AND EXISTS(SELECT 1 FROM documents d WHERE d.folder=s.folder AND d.type=r.type COLLATE NOCASE AND d.status='Conferido')) AS verified_count FROM students s ORDER BY name COLLATE NOCASE",
+      "SELECT s.id,s.name,s.registration,s.folder,s.updated,s.revision,s.birth_date,s.sex,s.social_name,s.birthplace,s.nationality,s.parentage,s.address,s.guardian,s.phone,s.email,s.extra_json,s.template_fields_json,(SELECT group_concat(g.name||' · '||c.name||' · '||e.school_year||' / '||e.period_label,'; ') FROM enrollments e JOIN class_groups g ON g.id=e.class_group JOIN courses c ON c.id=e.course WHERE e.student=s.id AND e.state IN ('Ativa','Em análise')) AS class_label,(SELECT count(*) FROM requirements r WHERE r.student=s.id) AS required_count,(SELECT count(*) FROM requirements r WHERE r.student=s.id AND EXISTS(SELECT 1 FROM documents d WHERE d.folder=s.folder AND d.type=r.type COLLATE NOCASE)) AS received_count,(SELECT count(*) FROM requirements r WHERE r.student=s.id AND EXISTS(SELECT 1 FROM documents d WHERE d.folder=s.folder AND d.type=r.type COLLATE NOCASE AND d.status='Conferido')) AS verified_count FROM students s WHERE ?=1 OR EXISTS(SELECT 1 FROM student_access a WHERE a.student=s.id AND a.user=?) ORDER BY name COLLATE NOCASE",
+      [manageStudents(u) ? 1 : 0, u['id']],
     );
-    final linked = await linkedStudents(u);
     return all
-        .where((p) => manageStudents(u) || linked.contains(p['id']))
         .map(
           (p) => {...p, 'data_pending_count': missingData(p).length}
             ..removeWhere(
@@ -350,7 +350,8 @@ class Store {
     final extra = p['extra'] ?? jsonDecode(p['extra_json']);
     return [
       for (final key in fields['identity'] ?? [])
-        if (p[key] == null || p[key] == '')
+        if (key != 'social_name' &&
+            (p[key] == null || p[key].toString().trim().isEmpty))
           '${{'birth_date': 'Nascimento', 'guardian': 'Responsável', 'phone': 'Telefone', 'email': 'E-mail', 'sex': 'Sexo informado', 'social_name': 'Nome social', 'birthplace': 'Naturalidade', 'nationality': 'Nacionalidade', 'parentage': 'Filiação', 'address': 'Endereço'}[key]} não informado',
       for (final key in fields['extra'] ?? [])
         if (extra[key] == null || extra[key].toString().trim().isEmpty)
@@ -604,14 +605,9 @@ class Store {
         type;
   }
 
-  Future<void> seed({bool demo = false}) async {
-    this.demo = demo;
-    if (!demo) {
-      await db.exec(
-        "INSERT OR IGNORE INTO users VALUES('local','Secretaria local','admin','secretaria')",
-      );
-      return;
-    }
+  Future<void> seed({bool test = false}) async {
+    testMode = test;
+    if (!test) return;
     if ((await db.rows('SELECT id FROM users LIMIT 1')).isNotEmpty) return;
     await db.transaction(() async {
       for (final u in [

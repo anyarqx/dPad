@@ -1,8 +1,12 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 
 import '../../shared/api.dart';
+import '../../shared/record_selection.dart';
+import '../documents/document_selection.dart';
+import '../accounts/accounts_page.dart';
 import '../../shared/widgets.dart';
 import '../../shared/page_header.dart';
 import '../../shared/section_tabs.dart';
@@ -22,7 +26,6 @@ class StudentsPage extends StatefulWidget {
   final ValueChanged<JsonMap> selectDocument;
   final ValueChanged<JsonMap> selectRequest;
   final Map<String, RequestDraft> requestDrafts;
-  final VoidCallback configureClasses;
   const StudentsPage({
     super.key,
     required this.api,
@@ -32,7 +35,6 @@ class StudentsPage extends StatefulWidget {
     required this.selectDocument,
     required this.selectRequest,
     required this.requestDrafts,
-    required this.configureClasses,
     this.studentId,
   });
   @override
@@ -54,10 +56,14 @@ class _StudentsPageState extends State<StudentsPage>
   );
   String search = '', filter = 'Todos', tab = 'Documentos';
   final searchController = TextEditingController();
+  final studentsSelection = RecordSelection(),
+      documentsSelection = RecordSelection();
   @override
   void dispose() {
     tabsController.dispose();
     searchController.dispose();
+    studentsSelection.dispose();
+    documentsSelection.dispose();
     super.dispose();
   }
 
@@ -85,10 +91,12 @@ class _StudentsPageState extends State<StudentsPage>
       search = '';
       filter = 'Todos';
     }
-    if (old.studentId != widget.studentId || old.data != widget.data) {
+    if (old.studentId != widget.studentId ||
+        !mapEquals(old.data, widget.data)) {
       reload();
     }
     if (old.studentId != widget.studentId) {
+      documentsSelection.ids.clear();
       tab = 'Documentos';
       tabsController.index = 0;
     }
@@ -114,7 +122,7 @@ class _StudentsPageState extends State<StudentsPage>
       await fn();
       await refresh();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     } finally {
       if (mounted) setState(() => working = false);
     }
@@ -149,6 +157,49 @@ class _StudentsPageState extends State<StudentsPage>
     );
   }
 
+  Future<void> bulkStudents(List<JsonMap> students, String action) async {
+    try {
+      final fields = <String, dynamic>{};
+      final key = action == 'enroll' ? 'class_group' : 'template';
+      final rows = List<JsonMap>.from(
+        widget.data[action == 'enroll' ? 'classes' : 'templates'],
+      ).where((v) => v['archived'] == 0);
+      final id = await pickChoice(
+        context,
+        title: action == 'enroll' ? 'Matricular alunos' : 'Aplicar modelo',
+        choices: [
+          for (final r in rows)
+            SearchChoice(
+              r['id'],
+              r['name'],
+              description: action == 'enroll'
+                  ? "${r['course_name']} · ${r['period_label']}"
+                  : '',
+            ),
+        ],
+      );
+      if (id == null || !mounted) return;
+      fields[key] = id;
+      await widget.api.send('POST', 'bulk', {
+        'resource': 'students',
+        'action': action,
+        'fields': fields,
+        'items': [
+          for (final row in students.where(
+            (r) => studentsSelection.ids.contains(r['id']),
+          ))
+            {'id': row['id'], 'revision': row['revision']},
+        ],
+      });
+      if (mounted) {
+        studentsSelection.clear();
+        widget.changed();
+      }
+    } catch (e) {
+      if (mounted) feedbackError(context, e);
+    }
+  }
+
   Widget directory() {
     final all = List<JsonMap>.from(widget.data['students']);
     final list = all.where((p) {
@@ -162,456 +213,510 @@ class _StudentsPageState extends State<StudentsPage>
       return q.contains(search.toLowerCase()) &&
           (filter != 'Com pendências' || missing > 0);
     }).toList();
-    return PageLayout(
-      header: title('Pastas de alunos', [
-        if (canManage)
-          button(
-            'Cadastrar aluno',
-            List<JsonMap>.from(widget.data['classes'])
-                    .any((g) => g['archived'] == 0)
-                ? () => action(() async {
-                    await editStudent(context, widget.api);
-                  })
-                : widget.configureClasses,
-            icon: FLucideIcons.userPlus,
-            primary: true,
+    final order = list.map((p) => p['id'] as String).toList();
+    return SelectionScope(
+      selection: studentsSelection,
+      order: order,
+      builder: (c) => PageLayout(
+        header: title('Pastas de alunos', [
+          if (canManage)
+            button(
+              'Cadastrar aluno',
+              () => action(() async {
+                await editStudent(context, widget.api);
+              }),
+              icon: FLucideIcons.userPlus,
+              primary: true,
+            ),
+          IconButton(
+            tooltip: 'Atualizar pastas',
+            onPressed: widget.changed,
+            icon: const Icon(FLucideIcons.refreshCw, size: 20),
           ),
-        IconButton(
-          tooltip: 'Atualizar pastas',
-          onPressed: widget.changed,
-          icon: const Icon(FLucideIcons.refreshCw, size: 20),
-        ),
-      ]),
-      headerPrefix: [],
-      children: [
-        const Text(
-          'Localize o aluno para consultar seus dados, documentos e pendências.',
-          style: TextStyle(fontSize: 13),
-        ),
-        const SizedBox(height: 20),
-        FTextField(
-          hint: 'Buscar por nome, matrícula ou turma',
-          control: FTextFieldControl.managed(
-            controller: searchController,
-            onChange: (v) => setState(() => search = v.text),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final f in ['Todos', 'Com pendências'])
-              ChoiceChip(
-                label: Text(f),
-                selected: f == filter,
-                onSelected: (_) => setState(() => filter = f),
-              ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        Expanded(
-          child: all.isEmpty
-              ? Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          FLucideIcons.folderHeart,
-                          size: 44,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          canManage
-                              ? 'Nenhum aluno cadastrado'
-                              : 'Nenhum aluno vinculado',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          canManage
-                              ? 'Cadastre primeiro os cursos e as turmas. Depois, abra a pasta do aluno e selecione um modelo documental.'
-                              : 'Peça à administração para vincular esta conta ao aluno correspondente.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(height: 1.6, fontSize: 13),
-                        ),
-                        if (canManage) ...[
-                          const SizedBox(height: 20),
-                          button(
-                            List<JsonMap>.from(widget.data['classes'])
-                                    .any((g) => g['archived'] == 0)
-                                ? 'Cadastrar primeiro aluno'
-                                : 'Organizar cursos e turmas',
-                            List<JsonMap>.from(widget.data['classes'])
-                                    .any((g) => g['archived'] == 0)
-                                ? () => action(() async {
-                                    await editStudent(context, widget.api);
-                                  })
-                                : widget.configureClasses,
-                            primary: true,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                )
-              : list.isEmpty
-              ? const Center(
-                  child: Text('Nenhum aluno encontrado para esta busca.'),
-                )
-              : ListView.separated(
-                  itemCount: list.length,
-                  separatorBuilder: (_, i) => const PixelDivider(),
-                  itemBuilder: (c, i) {
-                    final p = list[i];
-                    final received = p['received_count'] as int;
-                    final required = p['required_count'] as int;
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 4,
-                      ),
-                      leading: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: Theme.of(c)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        child: Text(
-                          p['name']
-                              .toString()
-                              .trim()
-                              .split(RegExp(r'\s+'))
-                              .take(2)
-                              .map((s) => s[0])
-                              .join(),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        p['name'],
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          [
-                            if (p['registration'] != null)
-                              'Matrícula ${p['registration']}',
-                            if (p['class_label'] != null) p['class_label'],
-                            '$received de $required documentos recebidos',
-                          ].join(' · '),
-                          style: const TextStyle(fontSize: 12, height: 1.6),
-                        ),
-                      ),
-                      trailing: const Icon(FLucideIcons.chevronRight, size: 20),
-                      onTap: () => widget.open(p['id']),
-                    );
-                  },
+        ]),
+        headerPrefix: [],
+        children: [
+          if (canManage && list.isNotEmpty)
+            SelectionToolbar(
+              selection: studentsSelection,
+              order: order,
+              actions: [
+                TextButton(
+                  onPressed: () => bulkStudents(list, 'enroll'),
+                  child: const Text('Matricular'),
                 ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '${list.length} de ${all.length} alunos',
-          style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
-        ),
-      ],
+                TextButton(
+                  onPressed: () => bulkStudents(list, 'template'),
+                  child: const Text('Aplicar modelo'),
+                ),
+              ],
+            ),
+          FTextField(
+            hint: 'Buscar por nome, matrícula ou turma',
+            control: FTextFieldControl.managed(
+              controller: searchController,
+              onChange: (v) => setState(() => search = v.text),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final f in ['Todos', 'Com pendências'])
+                ChoiceChip(
+                  label: Text(f),
+                  selected: f == filter,
+                  onSelected: (_) => setState(() => filter = f),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: all.isEmpty
+                ? Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            canManage
+                                ? 'Nenhum aluno cadastrado'
+                                : 'Nenhum aluno vinculado',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (!canManage)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                'Peça à administração para vincular o aluno à sua conta.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  )
+                : list.isEmpty
+                ? const Center(
+                    child: Text('Nenhum aluno encontrado para esta busca.'),
+                  )
+                : ListView.separated(
+                    itemCount: list.length,
+                    separatorBuilder: (_, i) => const PixelDivider(),
+                    itemBuilder: (c, i) {
+                      final p = list[i];
+                      final received = p['received_count'] as int;
+                      final required = p['required_count'] as int;
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 4,
+                        ),
+                        leading: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Theme.of(c)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: Text(
+                            p['name']
+                                .toString()
+                                .trim()
+                                .split(RegExp(r'\s+'))
+                                .take(2)
+                                .map((s) => s[0])
+                                .join(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          p['name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            [
+                              if (p['registration'] != null)
+                                'Matrícula ${p['registration']}',
+                              if (p['class_label'] != null) p['class_label'],
+                              '$received de $required documentos recebidos',
+                            ].join(' · '),
+                            style: const TextStyle(fontSize: 12, height: 1.6),
+                          ),
+                        ),
+                        trailing: const Icon(
+                          FLucideIcons.chevronRight,
+                          size: 20,
+                        ),
+                        onTap: () {
+                          if (!canManage ||
+                              !studentsSelection.intercept(p['id'], order)) {
+                            studentsSelection.clear();
+                            widget.open(p['id']);
+                          }
+                        },
+                        onLongPress: canManage
+                            ? () => studentsSelection.toggle(p['id'], order)
+                            : null,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget dossier(JsonMap p) {
     final requirements = List<JsonMap>.from(p['requirements']);
     final docs = List<JsonMap>.from(p['documents']);
+    final order = docs.map((d) => d['id'] as String).toList();
+    final docTools = DocumentSelection(
+      api: widget.api,
+      selection: documentsSelection,
+      documents: docs,
+      folders: List<JsonMap>.from(widget.data['folders']),
+      changed: widget.changed,
+      review: canManage,
+    );
     final received = requirements
         .where((r) => (r['documents'] as List).isNotEmpty)
         .length;
     final verified = requirements
         .where((r) => r['status'] == 'Conferido')
         .length;
-    return PageLayout(
-      header: title(p['name'], [
-        if (canManage)
-          button(
-            'Editar dados',
-            () => action(() async {
-              await editStudent(context, widget.api, student: p);
-            }),
-            icon: FLucideIcons.userRoundPen,
-          ),
-        if (canManage)
-          button(
-            'Aplicar modelo',
-            working ? null : () => applyTemplate(p),
-            icon: FLucideIcons.files,
-          ),
-      ]),
-      headerPrefix: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => widget.open(null),
-            icon: const Icon(FLucideIcons.arrowLeft, size: 16),
-            label: const Text('Pastas de alunos'),
-          ),
-        ),
-        const SizedBox(height: 12),
-      ],
-      children: [
-        Text(
-          [
-            if (p['registration'] != null) 'Matrícula ${p['registration']}',
-            if (List<JsonMap>.from(widget.data['students'])
-                    .where((s) => s['id'] == p['id'])
-                    .firstOrNull?['class_label'] !=
-                null)
-              List<JsonMap>.from(widget.data['students'])
-                  .firstWhere((s) => s['id'] == p['id'])['class_label'],
-          ].join(' · '),
-          style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
-        ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 16,
-          runSpacing: 8,
-          children: [
-            Text(
-              '$received de ${requirements.length} recebidos',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+    return SelectionScope(
+      selection: documentsSelection,
+      order: order,
+      onDelete: () => docTools.apply(context, 'delete'),
+      builder: (c) => PageLayout(
+        header: title(p['name'], [
+          if (widget.data['session']['user']['role'] == 'admin' &&
+              widget.data['session']['test'] != true)
+            button('Criar acesso', () async {
+              await openEditor<bool>(
+                context,
+                AccountForm(
+                  api: widget.api,
+                  students: [p],
+                  preset: {
+                    'name': p['name'],
+                    'role': 'aluno',
+                    'students': [p['id']],
+                  },
+                  provisionStudent: p['id'],
+                ),
+              );
+            }, icon: FLucideIcons.userPlus),
+
+          if (canManage)
+            button(
+              'Editar dados',
+              () => action(() async {
+                await editStudent(context, widget.api, student: p);
+              }),
+              icon: FLucideIcons.userRoundPen,
             ),
-            Text('$verified conferidos', style: const TextStyle(fontSize: 13)),
-            Text(
-              '${requirements.length - received} ainda não enviados',
-              style: const TextStyle(fontSize: 13),
+          if (canManage)
+            button(
+              'Aplicar modelo',
+              working ? null : () => applyTemplate(p),
+              icon: FLucideIcons.files,
             ),
-            if ((p['data_pending_count'] as int? ?? 0) > 0)
+        ]),
+        headerPrefix: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => widget.open(null),
+              icon: const Icon(FLucideIcons.arrowLeft, size: 16),
+              label: const Text('Pastas de alunos'),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        children: [
+          if (tab == 'Documentos' && docs.isNotEmpty) docTools,
+          Text(
+            [
+              if (p['registration'] != null) 'Matrícula ${p['registration']}',
+              if (List<JsonMap>.from(widget.data['students'])
+                      .where((s) => s['id'] == p['id'])
+                      .firstOrNull?['class_label'] !=
+                  null)
+                List<JsonMap>.from(widget.data['students'])
+                    .firstWhere((s) => s['id'] == p['id'])['class_label'],
+            ].join(' · '),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
               Text(
-                '${p['data_pending_count']} informações a preencher',
+                '$received de ${requirements.length} recebidos',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                '$verified conferidos',
                 style: const TextStyle(fontSize: 13),
               ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SectionTabs(
-          value: tab,
-          items: sections,
-          onChanged: (v) => tabsController.index = sections.indexOf(v),
-        ),
-        const PixelDivider(),
-        const SizedBox(height: 18),
-        loadingLine(working),
-        Expanded(
-          child: tab == 'Dados do aluno'
-              ? studentData(p)
-              : tab == 'Matrículas'
-              ? EnrollmentPanel(
-                  api: widget.api,
-                  student: p,
-                  data: widget.data,
-                  changed: widget.changed,
-                )
-              : tab == 'Boletim e frequência'
-              ? ReportPanel(
-                  api: widget.api,
-                  student: p,
-                  user: JsonMap.from(widget.data['session']['user']),
-                )
-              : tab == 'Solicitações'
-              ? studentRequests(p)
-              : ListView(
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        button(
-                          'Adicionar documento',
-                          working ? null : () => upload(p),
-                          icon: FLucideIcons.upload,
-                          primary: true,
-                        ),
-                        button(
-                          'Digitalizar',
-                          working ? null : () => upload(p, scanImages: true),
-                          icon: FLucideIcons.scanLine,
-                        ),
-                        if (canManage)
+              Text(
+                '${requirements.length - received} ainda não enviados',
+                style: const TextStyle(fontSize: 13),
+              ),
+              if ((p['data_pending_count'] as int? ?? 0) > 0)
+                Text(
+                  '${p['data_pending_count']} informações a preencher',
+                  style: const TextStyle(fontSize: 13),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SectionTabs(
+            value: tab,
+            items: sections,
+            onChanged: (v) => tabsController.index = sections.indexOf(v),
+          ),
+          const PixelDivider(),
+          const SizedBox(height: 18),
+          loadingLine(working),
+          Expanded(
+            child: tab == 'Dados do aluno'
+                ? studentData(p)
+                : tab == 'Matrículas'
+                ? EnrollmentPanel(
+                    api: widget.api,
+                    student: p,
+                    data: widget.data,
+                    changed: widget.changed,
+                  )
+                : tab == 'Boletim e frequência'
+                ? ReportPanel(
+                    api: widget.api,
+                    student: p,
+                    user: JsonMap.from(widget.data['session']['user']),
+                  )
+                : tab == 'Solicitações'
+                ? studentRequests(p)
+                : ListView(
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
                           button(
-                            'Solicitar outro documento',
-                            working ? null : () => addRequirement(p),
-                            icon: FLucideIcons.listPlus,
+                            'Adicionar documento',
+                            working ? null : () => upload(p),
+                            icon: FLucideIcons.upload,
+                            primary: true,
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'DOCUMENTOS ESPERADOS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (requirements.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text(
-                          'Nenhum documento exigido nesta pasta. Você pode adicionar arquivos ou solicitar documentos específicos.',
-                        ),
-                      ),
-                    for (final r in requirements) ...[
-                      LayoutBuilder(
-                        builder: (c, constraints) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    r['status'] == 'Conferido'
-                                        ? FLucideIcons.circleCheck
-                                        : (r['documents'] as List).isEmpty
-                                        ? FLucideIcons.circleDashed
-                                        : FLucideIcons.fileCheck,
-                                    size: 20,
-                                    color: Theme.of(c)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          r['type'],
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 5),
-                                        badge(r['status']),
-                                      ],
-                                    ),
-                                  ),
-                                  if ((r['documents'] as List).isEmpty)
-                                    TextButton(
-                                      onPressed: working
-                                          ? null
-                                          : () => upload(p, type: r['type']),
-                                      child: const Text('Adicionar'),
-                                    ),
-                                  if (canManage)
-                                    PopupMenuButton<String>(
-                                      tooltip: 'Opções de ${r['type']}',
-                                      onSelected: (_) => action(() async {
-                                        if (await confirm(
-                                          context,
-                                          'Retirar “${r['type']}” da lista esperada? Os arquivos enviados serão preservados.',
-                                        )) {
-                                          await widget.api.send(
-                                            'DELETE',
-                                            'students/${p['id']}/requirements/${r['id']}',
-                                          );
-                                        }
-                                      }),
-                                      itemBuilder: (_) => [
-                                        const PopupMenuItem(
-                                          value: 'remove',
-                                          child: Text(
-                                            'Não exigir este documento',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                              for (final d in List<JsonMap>.from(
-                                r['documents'],
-                              ))
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 32,
-                                    top: 4,
-                                  ),
-                                  child: ListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(
-                                      d['name'],
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    subtitle: Text(
-                                      '${size(d['size'])} · ${date(d['created'])}',
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    trailing: const Icon(
-                                      FLucideIcons.chevronRight,
-                                      size: 16,
-                                    ),
-                                    onTap: () => widget.selectDocument(d),
-                                  ),
-                                ),
-                            ],
+                          button(
+                            'Digitalizar',
+                            working ? null : () => upload(p, scanImages: true),
+                            icon: FLucideIcons.scanLine,
                           ),
-                        ),
+                          if (canManage)
+                            button(
+                              'Solicitar outro documento',
+                              working ? null : () => addRequirement(p),
+                              icon: FLucideIcons.listPlus,
+                            ),
+                        ],
                       ),
-                      const PixelDivider(),
-                    ],
-                    if (docs.any(
-                      (d) => !requirements.any(
-                        (r) =>
-                            r['type'].toString().toLowerCase() ==
-                            d['type'].toString().toLowerCase(),
-                      ),
-                    )) ...[
                       const SizedBox(height: 20),
                       const Text(
-                        'OUTROS ARQUIVOS',
+                        'DOCUMENTOS ESPERADOS',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1,
                         ),
                       ),
-                      for (final d in docs.where(
+                      const SizedBox(height: 10),
+                      if (requirements.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Text(
+                            'Nenhum documento exigido nesta pasta. Você pode adicionar arquivos ou solicitar documentos específicos.',
+                          ),
+                        ),
+                      for (final r in requirements) ...[
+                        LayoutBuilder(
+                          builder: (c, constraints) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      r['status'] == 'Conferido'
+                                          ? FLucideIcons.circleCheck
+                                          : (r['documents'] as List).isEmpty
+                                          ? FLucideIcons.circleDashed
+                                          : FLucideIcons.fileCheck,
+                                      size: 20,
+                                      color: Theme.of(c)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            r['type'],
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          badge(r['status']),
+                                        ],
+                                      ),
+                                    ),
+                                    if ((r['documents'] as List).isEmpty)
+                                      TextButton(
+                                        onPressed: working
+                                            ? null
+                                            : () => upload(p, type: r['type']),
+                                        child: const Text('Adicionar'),
+                                      ),
+                                    if (canManage)
+                                      PopupMenuButton<String>(
+                                        tooltip: 'Opções de ${r['type']}',
+                                        onSelected: (_) => action(() async {
+                                          if (await confirm(
+                                            context,
+                                            'Retirar “${r['type']}” da lista esperada? Os arquivos enviados serão preservados.',
+                                          )) {
+                                            await widget.api.send(
+                                              'DELETE',
+                                              'students/${p['id']}/requirements/${r['id']}',
+                                            );
+                                          }
+                                        }),
+                                        itemBuilder: (_) => [
+                                          const PopupMenuItem(
+                                            value: 'remove',
+                                            child: Text(
+                                              'Não exigir este documento',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                                for (final d in List<JsonMap>.from(
+                                  r['documents'],
+                                ))
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 32,
+                                      top: 4,
+                                    ),
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text(
+                                        d['name'],
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      subtitle: Text(
+                                        '${size(d['size'])} · ${date(d['created'])}',
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      trailing: const Icon(
+                                        FLucideIcons.chevronRight,
+                                        size: 16,
+                                      ),
+                                      onTap: () {
+                                        if (!documentsSelection.intercept(
+                                          d['id'],
+                                          order,
+                                        )) {
+                                          widget.selectDocument(d);
+                                        }
+                                      },
+                                      onLongPress: () => documentsSelection
+                                          .toggle(d['id'], order),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const PixelDivider(),
+                      ],
+                      if (docs.any(
                         (d) => !requirements.any(
                           (r) =>
                               r['type'].toString().toLowerCase() ==
                               d['type'].toString().toLowerCase(),
                         ),
-                      ))
-                        ListTile(
-                          title: Text(
-                            d['name'],
-                            style: const TextStyle(fontSize: 13),
+                      )) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          'OUTROS ARQUIVOS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1,
                           ),
-                          subtitle: Text(
-                            '${d['type']} · ${size(d['size'])}',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          leading: const Icon(FLucideIcons.file, size: 20),
-                          onTap: () => widget.selectDocument(d),
                         ),
+                        for (final d in docs.where(
+                          (d) => !requirements.any(
+                            (r) =>
+                                r['type'].toString().toLowerCase() ==
+                                d['type'].toString().toLowerCase(),
+                          ),
+                        ))
+                          ListTile(
+                            title: Text(
+                              d['name'],
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              '${d['type']} · ${size(d['size'])}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            leading: const Icon(FLucideIcons.file, size: 20),
+                            onTap: () {
+                              if (!documentsSelection.intercept(
+                                d['id'],
+                                order,
+                              )) {
+                                widget.selectDocument(d);
+                              }
+                            },
+                            onLongPress: () =>
+                                documentsSelection.toggle(d['id'], order),
+                          ),
+                      ],
                     ],
-                  ],
-                ),
-        ),
-      ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -624,7 +729,7 @@ class _StudentsPageState extends State<StudentsPage>
           .where((m) => m['archived'] == 0)
           .toList();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
       return;
     } finally {
       if (mounted) setState(() => working = false);
@@ -777,7 +882,6 @@ class _StudentsPageState extends State<StudentsPage>
           p['folder'],
           bytes: bytes?.pdf,
           filename: scanImages ? 'Digitalização.pdf' : null,
-          originals: bytes?.originals ?? [],
           suggestedType: type ?? 'Outros documentos',
           fixedDestination: true,
           personName: p['name'],

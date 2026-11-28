@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +12,12 @@ import 'software_menu.dart';
 bool _enabled = false;
 bool get windowChromeEnabled => _enabled;
 final _lifecycle = _WindowLifecycle();
+
+Future<void> toggleFullScreen() async {
+  if (_enabled) {
+    await windowManager.setFullScreen(!await windowManager.isFullScreen());
+  }
+}
 
 class _WindowLifecycle extends WindowListener {
   bool closing = false;
@@ -47,7 +54,7 @@ Future<void> configureWindow() async {
   await windowManager.setPreventClose(true);
   await windowManager.waitUntilReadyToShow(
     const WindowOptions(
-      title: 'Do Papel ao Digital',
+      title: 'dPad',
       size: Size(1360, 860),
       minimumSize: Size(720, 540),
       center: true,
@@ -74,13 +81,27 @@ class _WindowFrameState extends State<WindowFrame> with WindowListener {
   @override
   void initState() {
     super.initState();
-    if (_enabled) windowManager.addListener(this);
+    if (_enabled) {
+      windowManager.addListener(this);
+      HardwareKeyboard.instance.addHandler(handleWindowKey);
+    }
   }
 
   @override
   void dispose() {
-    if (_enabled) windowManager.removeListener(this);
+    if (_enabled) {
+      HardwareKeyboard.instance.removeHandler(handleWindowKey);
+      windowManager.removeListener(this);
+    }
     super.dispose();
+  }
+
+  bool handleWindowKey(KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.f11) {
+      return false;
+    }
+    toggleFullScreen();
+    return true;
   }
 
   @override

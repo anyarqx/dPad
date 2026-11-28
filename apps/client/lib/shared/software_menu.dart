@@ -4,15 +4,20 @@ import 'launcher.dart';
 import 'operation_status.dart';
 import 'app_logo.dart';
 import 'app_theme.dart';
+import 'window_chrome.dart' show windowChromeEnabled;
 
 enum SoftwareAction {
   appearance,
   connection,
   status,
-  host,
   stop,
+  maintenance,
+  help,
   licenses,
   activity,
+  fullscreen,
+  navigation,
+  sidebar,
 }
 
 class SoftwareMenuObserver extends NavigatorObserver {
@@ -62,16 +67,20 @@ class SoftwareMenus extends StatelessWidget {
   Widget build(BuildContext c) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      _menu('Configurações', const {
+      _menu('Configurações', {
         SoftwareAction.appearance: 'Aparência',
+        if (windowChromeEnabled) SoftwareAction.fullscreen: 'Tela cheia',
         SoftwareAction.licenses: 'Sobre e licenças',
       }),
       _menu('Servidor', {
-        SoftwareAction.connection: 'Conectar a um servidor…',
+        SoftwareAction.connection: canHost
+            ? 'Conexão e hospedagem…'
+            : 'Conectar a um servidor…',
         SoftwareAction.status: 'Verificar conexão',
-        if (canHost) SoftwareAction.host: 'Hospedar nesta máquina',
+        SoftwareAction.maintenance: 'Manutenção',
         if (canHost) SoftwareAction.stop: 'Encerrar hospedagem local',
       }),
+      _menu('Ajuda', const {SoftwareAction.help: 'Atalhos de teclado'}),
       const OperationNoticeButton(onPressed: openActivity),
     ],
   );
@@ -99,6 +108,11 @@ class SoftwareMenus extends StatelessWidget {
         final action = await showMenu<SoftwareAction>(
           context: target,
           routeSettings: RouteSettings(name: 'software-menu:$label'),
+          constraints: BoxConstraints(
+            minWidth: 140,
+            maxWidth: MediaQuery.textScalerOf(c).scale(224).clamp(224, 340),
+          ),
+          menuPadding: const EdgeInsets.symmetric(vertical: 4),
           position: RelativeRect.fromRect(
             origin & Size(button.size.width, 0),
             Offset.zero & overlay.size,
@@ -107,6 +121,7 @@ class SoftwareMenus extends StatelessWidget {
             for (final entry in items.entries)
               PopupMenuItem(
                 value: entry.key,
+                height: 38,
                 enabled: entry.key != SoftwareAction.stop || isHosting,
                 child: Text(entry.value),
               ),
@@ -118,6 +133,91 @@ class SoftwareMenus extends StatelessWidget {
     ),
   );
 }
+
+Future<void> showShortcutTable(
+  BuildContext context, {
+  required bool desktop,
+}) => showDialog<void>(
+  context: context,
+  builder: (c) {
+    final scheme = Theme.of(c).colorScheme;
+    final groups = {
+      'Aplicativo': [
+        ('F1', 'Abrir a tabela de atalhos'),
+        if (desktop) ('F11', 'Entrar ou sair da tela cheia'),
+        ('Ctrl + Alt + K', 'Ir para uma seção'),
+        ('Ctrl + Alt + B', 'Recolher ou abrir a navegação'),
+      ],
+      'Listas e arquivo': [
+        ('Ctrl / ⌘ + clique', 'Alternar a seleção de um item'),
+        ('Shift + clique', 'Selecionar um intervalo de itens'),
+        ('Ctrl / ⌘ + A', 'Selecionar os itens visíveis'),
+        ('Esc', 'Limpar a seleção'),
+        ('Delete', 'Excluir documentos selecionados, com confirmação'),
+        ('F2', 'Editar o documento selecionado no arquivo'),
+        ('Alt + ↑', 'Subir uma pasta no arquivo'),
+        ('Ctrl / ⌘ + F', 'Buscar no arquivo'),
+      ],
+      'Formulários e tabelas': [
+        ('Tab / Shift + Tab', 'Avançar ou voltar entre campos e controles'),
+        ('Enter', 'Confirmar um resultado único no seletor'),
+        ('Espaço', 'Marcar ou desmarcar a caixa em foco'),
+      ],
+    };
+    Widget cell(String value, {bool heading = false}) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: heading ? FontWeight.w600 : FontWeight.w400,
+        ),
+      ),
+    );
+    return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
+      title: const Text('Atalhos de teclado'),
+      content: SizedBox(
+        width: 570,
+        child: SingleChildScrollView(
+          child: Table(
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(2)},
+            border: TableBorder(
+              horizontalInside: BorderSide(color: scheme.outlineVariant),
+            ),
+            children: [
+              TableRow(
+                decoration: BoxDecoration(color: scheme.surfaceContainer),
+                children: [
+                  cell('Tecla', heading: true),
+                  cell('Ação', heading: true),
+                ],
+              ),
+              for (final group in groups.entries) ...[
+                TableRow(
+                  decoration: BoxDecoration(color: scheme.surfaceContainerLow),
+                  children: [
+                    cell(group.key, heading: true),
+                    const SizedBox.shrink(),
+                  ],
+                ),
+                for (final row in group.value)
+                  TableRow(children: [cell(row.$1), cell(row.$2)]),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: const Text('Fechar'),
+        ),
+      ],
+    );
+  },
+);
 
 class SoftwareToolbar extends StatelessWidget {
   const SoftwareToolbar({super.key});
@@ -132,7 +232,7 @@ class SoftwareToolbar extends StatelessWidget {
           AppLogo(size: 22),
           SizedBox(width: 10),
           Text(
-            'Do Papel ao Digital',
+            'dPad',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           SizedBox(width: 24),

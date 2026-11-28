@@ -141,7 +141,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('picker:Naturalidade')));
       await tester.pumpAndSettle();
       await search(tester, 'Lisboa, Portugal');
-      await tester.tap(find.text('Cancelar'));
+      await tester.tap(find.byTooltip('Fechar'));
       await tester.pumpAndSettle();
       expect(controller.text, 'Localidade anterior');
       await tester.tap(find.byKey(const ValueKey('picker:Naturalidade')));

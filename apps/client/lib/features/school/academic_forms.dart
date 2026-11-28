@@ -74,7 +74,9 @@ class _AcademicEditorState extends State<_AcademicEditor> {
     for (final f in widget.fields.where((f) => f.options != null))
       f.keyName: f.options!.containsKey(widget.initial[f.keyName]?.toString())
           ? widget.initial[f.keyName].toString()
-          : f.options!.keys.firstOrNull ?? '',
+          : f.options!.length == 1
+          ? f.options!.keys.single
+          : null,
   };
   bool saving = false;
   String? error;
@@ -101,6 +103,9 @@ class _AcademicEditorState extends State<_AcademicEditor> {
         final value = f.options == null
             ? controllers[f.keyName]!.text
             : choices[f.keyName];
+        if (f.options != null && value == null) {
+          throw FormatException('Selecione uma opção em ${f.label}.');
+        }
         if (f.integer) {
           final parsed = int.tryParse(value ?? '');
           if (parsed == null) {

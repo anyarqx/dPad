@@ -24,20 +24,20 @@ class WindowTitleBar extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 218,
+            width: MediaQuery.sizeOf(c).width < 760 ? 88 : 110,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onPanStart: (_) => drag(),
               onDoubleTap: maximize,
               child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 18),
+                padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Row(
                   children: [
                     AppLogo(size: 22),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Do Papel ao Digital',
+                        'dPad',
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,

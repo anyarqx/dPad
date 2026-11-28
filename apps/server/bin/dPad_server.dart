@@ -8,6 +8,7 @@ import 'package:shelf_static/shelf_static.dart';
 import '../lib/src/database.dart' show Database;
 import '../lib/src/store.dart';
 import '../lib/src/app.dart';
+import '../lib/src/test_data.dart';
 
 Future<void> main(List<String> args) async {
   String option(String key, String fallback) {
@@ -15,9 +16,18 @@ Future<void> main(List<String> args) async {
     return i >= 0 && i + 1 < args.length ? args[i + 1] : fallback;
   }
 
-  final dir = Directory(
+  final production = Directory(
     option('data', Platform.environment['DPAD_DATA'] ?? 'data'),
   ).absolute;
+  final testMode = args.contains('--test');
+  final dir = testMode ? Directory('${production.path}.test') : production;
+  if (testMode &&
+      await FileSystemEntity.type(dir.path, followLinks: false) ==
+          FileSystemEntityType.link) {
+    stderr.writeln('O diretório de testes não pode ser um link.');
+    exitCode = 1;
+    return;
+  }
   await dir.create(recursive: true);
   final lock = await File('${dir.path}/server.lock')
       .open(mode: FileMode.append);
@@ -57,7 +67,21 @@ Future<void> main(List<String> args) async {
       if (f is File && f.path.endsWith('.part')) await f.delete();
     }
     final store = Store(db, files);
-    await store.seed(demo: args.contains('--demo'));
+    final testProfiles = await db.rows(
+      "SELECT id FROM users WHERE id IN ('admin','aluno')",
+    );
+    if (testMode &&
+        testProfiles.length != 2 &&
+        (await db.rows('SELECT user FROM credentials LIMIT 1')).isNotEmpty) {
+      throw StateError(
+        'Use um diretório de testes separado de contas institucionais.',
+      );
+    }
+    if (!testMode && testProfiles.isNotEmpty) {
+      throw StateError('Este diretório pertence a uma instalação de testes.');
+    }
+    await store.seed(test: testMode);
+    if (testMode) await seedTestAcademics(store);
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
     );
@@ -78,6 +102,7 @@ Future<void> main(List<String> args) async {
           ? {}
           : {
               'listen': server.address.address,
+              'test': testMode,
               'port': server.port,
               'addresses': [
                 if (server.address.isLoopback)
@@ -108,11 +133,15 @@ Future<void> main(List<String> args) async {
 
     server = await io.serve(
       handler,
-      option('host', Platform.environment['DPAD_HOST'] ?? '0.0.0.0'),
+      option(
+        'host',
+        Platform.environment['DPAD_HOST'] ??
+            (testMode ? '127.0.0.1' : '0.0.0.0'),
+      ),
       int.parse(option('port', '8080')),
     );
     stdout.writeln(
-      'Do Papel ao Digital: http://${server.address.host}:${server.port} | ${dir.path}',
+      'dPad em http://${server.address.host}:${server.port} | ${dir.path}',
     );
     var closing = false;
     Future<void> stop() async {
@@ -139,7 +168,7 @@ Future<void> main(List<String> args) async {
         if (line == 'shutdown') stop();
       }, onDone: stop);
   } catch (e) {
-    stderr.writeln('Falha ao iniciar: $e');
+    stderr.writeln('Falha ao iniciar: ${e is ApiError ? e.message : e}');
     await server?.close(force: true);
     await db.close();
     await lock.close();

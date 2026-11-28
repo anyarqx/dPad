@@ -89,12 +89,12 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Do Papel ao Digital" "\0"
-            VALUE "FileDescription", "Do Papel ao Digital" "\0"
+            VALUE "CompanyName", "dPad" "\0"
+            VALUE "FileDescription", "dPad" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "papel_digital" "\0"
             VALUE "OriginalFilename", "papel_digital.exe" "\0"
-            VALUE "ProductName", "Do Papel ao Digital" "\0"
+            VALUE "ProductName", "dPad" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

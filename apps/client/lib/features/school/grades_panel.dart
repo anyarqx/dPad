@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 
 import '../../shared/api.dart';
+import 'record_grid.dart';
 import '../../shared/widgets.dart';
 import '../../shared/page_header.dart';
 
@@ -37,10 +38,9 @@ class _GradesPanelState extends State<GradesPanel> {
   }
 
   Future<void> edit([JsonMap? assessment]) async {
-    if (await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => GradeForm(
+    if (await openEditor<bool>(
+          context,
+          GradeForm(
             api: widget.api,
             journal: widget.journal,
             assessment: assessment,
@@ -90,7 +90,7 @@ class _GradesPanelState extends State<GradesPanel> {
       });
       refresh();
     } catch (e) {
-      if (mounted) feedback(context, e);
+      if (mounted) feedbackError(context, e);
     }
   }
 
@@ -139,6 +139,25 @@ class _GradesPanelState extends State<GradesPanel> {
             }
             return ListView(
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: button('Grade de notas', () async {
+                    if (await openEditor<bool>(
+                          c,
+                          RecordGrid(
+                            api: widget.api,
+                            journal: widget.journal,
+                            records: list,
+                            grades: true,
+                          ),
+                          width: 1080,
+                        ) ==
+                        true) {
+                      refresh();
+                    }
+                  }),
+                ),
+
                 for (final a in list) ...[
                   ExpansionTile(
                     tilePadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -349,137 +368,131 @@ class _GradeFormState extends State<GradeForm> {
   }
 
   @override
-  Widget build(BuildContext c) => AlertDialog(
-    title: Text(
-      widget.assessment == null ? 'Lançar avaliação' : 'Editar notas',
-    ),
-    content: SizedBox(
-      width: 820,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext c) => EditorPage(
+    title: widget.assessment == null ? 'Lançar avaliação' : 'Editar notas',
+    body: ListView(
+      children: [
+        sectionHeading(widget.journal['subject']),
+        field('Avaliação *', name, tip: 'Exemplo: Atividade prática de redes.'),
+        field(
+          'Etapa avaliativa *',
+          stage,
+          tip: 'Nome da etapa conforme o calendário: 1º bimestre, unidade 2 ou avaliação da fase.',
+        ),
+        field(
+          'Data da avaliação (AAAA-MM-DD)',
+          day,
+          kind: FieldKind.isoDate,
+          tip: 'Data já ocorrida dentro do ano letivo.',
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            sectionHeading(
-              widget.journal['subject'],
-              description: 'As notas são salvas juntas. Não informe zero para uma nota ainda pendente.',
-            ),
-            field(
-              'Avaliação *',
-              name,
-              tip: 'Exemplo: Atividade prática de redes.',
-            ),
-            field(
-              'Etapa avaliativa *',
-              stage,
-              tip: 'Nome da etapa conforme o calendário: 1º bimestre, unidade 2 ou avaliação da fase.',
-            ),
-            field(
-              'Data da avaliação (AAAA-MM-DD)',
-              day,
-              tip: 'Data já ocorrida dentro do ano letivo.',
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: field(
-                    'Valor máximo *',
-                    maximum,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    tip: 'Exemplo: 10 ou 100.',
-                  ),
+            Expanded(
+              child: field(
+                'Valor máximo *',
+                maximum,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: field(
-                    'Peso *',
-                    weight,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    tip: 'Peso relativo na média. Exemplo: 1 ou 2.',
-                  ),
-                ),
-              ],
-            ),
-            sectionHeading(
-              'Notas por aluno',
-              description: 'Ausência e dispensa são situações próprias. Dispensa exige uma observação.',
-            ),
-            if (rows.isEmpty)
-              const Text(
-                'Não há matrículas ativas. Ative as matrículas antes de lançar uma avaliação.',
+                tip: 'Exemplo: 10 ou 100.',
               ),
-            for (final r in rows)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: FTheme.of(c).colors.muted,
-                  borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: field(
+                'Peso *',
+                weight,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                tip: 'Peso relativo na média. Exemplo: 1 ou 2.',
+              ),
+            ),
+          ],
+        ),
+        sectionHeading(
+          'Notas por aluno',
+          description: 'Ausência e dispensa são situações próprias. Dispensa exige uma observação.',
+        ),
+        if (rows.isEmpty)
+          const Text(
+            'Não há matrículas ativas. Ative as matrículas antes de lançar uma avaliação.',
+          ),
+        for (final r in rows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      r['student_name'],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        r['student_name'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: selector('Situação', r['status'], [
-                            for (final status in [
-                              'Pendente',
-                              'Lançada',
-                              'Ausente',
-                              'Dispensada',
-                            ])
-                              DropdownMenuItem(
-                                value: status,
-                                child: Text(status),
-                              ),
-                          ], (v) => setState(() => r['status'] = v!)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: field(
-                            'Nota',
-                            scores[r['enrollment']]!,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 116,
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: r['status'],
+                        items: [
+                          for (final status in [
+                            'Pendente',
+                            'Lançada',
+                            'Ausente',
+                            'Dispensada',
+                          ])
+                            DropdownMenuItem(
+                              value: status,
+                              child: Text(status),
                             ),
-                            enabled: !saving && r['status'] == 'Lançada',
-                            hint: '0',
-                          ),
-                        ),
-                      ],
+                        ],
+                        onChanged: saving
+                            ? null
+                            : (v) => setState(() => r['status'] = v!),
+                      ),
                     ),
-                    field(
-                      'Observação da nota',
-                      notes[r['enrollment']]!,
-                      tip: 'Obrigatória para dispensa. Visível ao aluno e responsável.',
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 72,
+                      child: TextField(
+                        controller: scores[r['enrollment']]!,
+                        enabled: !saving,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          hintText: 'Nota',
+                        ),
+                        onChanged: (v) => setState(
+                          () => r['status'] = v.trim().isEmpty
+                              ? 'Pendente'
+                              : 'Lançada',
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            if (error != null)
-              Text(
-                error!,
-                style: TextStyle(color: Theme.of(c).colorScheme.error),
-              ),
-          ],
-        ),
-      ),
+                if (r['status'] == 'Dispensada' ||
+                    notes[r['enrollment']]!.text.isNotEmpty)
+                  field(
+                    'Observação da nota',
+                    notes[r['enrollment']]!,
+                    tip: 'Obrigatória para dispensa.',
+                  ),
+              ],
+            ),
+          ),
+        if (error != null)
+          Text(error!, style: TextStyle(color: Theme.of(c).colorScheme.error)),
+      ],
     ),
     actions: [
       TextButton(

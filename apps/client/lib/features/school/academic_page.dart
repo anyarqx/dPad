@@ -84,7 +84,12 @@ class _AcademicPageState extends State<AcademicPage> {
           : 'Editar componente',
       path: old == null ? 'components' : 'components/${old['id']}',
       method: old == null ? 'POST' : 'PATCH',
-      initial: old ?? {'course': course ?? courses.first['id']},
+      initial:
+          old ??
+          {
+            'course':
+                course ?? (courses.length == 1 ? courses.single['id'] : null),
+          },
       fields: [
         AcademicField(
           'course',

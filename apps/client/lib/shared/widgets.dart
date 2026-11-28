@@ -7,6 +7,9 @@ import 'search_picker.dart';
 import 'operation_status.dart';
 import 'date_input.dart';
 export 'field_help.dart';
+export 'editor_page.dart';
+
+enum FieldKind { text, date, isoDate, email, phone, integer, decimal, time }
 
 Widget button(
   String label,
@@ -119,16 +122,17 @@ Widget field(
   bool enabled = true,
   TextInputType? keyboardType,
   Widget? trailing,
-}) => label.contains('/AAAA)') || label.contains('AAAA-MM-DD)')
+  FieldKind kind = FieldKind.text,
+}) => kind == FieldKind.date || kind == FieldKind.isoDate
     ? SchoolDateInput(
         label: label,
         controller: c,
-        iso: label.contains('AAAA-MM-DD'),
+        iso: kind == FieldKind.isoDate,
         enabled: enabled,
         tip: tip ?? fieldTips[label],
       )
     : Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 10),
         child: FTextField(
           key: ValueKey('field:$label'),
           label: fieldLabel(label, tip ?? fieldTips[label]),
@@ -136,9 +140,16 @@ Widget field(
           enabled: enabled,
           keyboardType:
               keyboardType ??
-              (label.contains('/AAAA)') || label.contains('AAAA-MM-DD)')
-                  ? TextInputType.datetime
-                  : null),
+              switch (kind) {
+                FieldKind.email => TextInputType.emailAddress,
+                FieldKind.phone => TextInputType.phone,
+                FieldKind.integer => TextInputType.number,
+                FieldKind.decimal => const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                FieldKind.time => TextInputType.datetime,
+                _ => null,
+              },
           suffixBuilder: trailing == null ? null : (_, _, _) => trailing,
           control: FTextFieldControl.managed(controller: c),
           maxLines: lines,
@@ -184,12 +195,15 @@ String size(dynamic v) => v == null
     : v < 1048576
     ? '${(v / 1024).toStringAsFixed(0)} KB'
     : '${(v / 1048576).toStringAsFixed(1)} MB';
-void feedback(BuildContext c, Object message) {
+void feedback(BuildContext c, Object message, {bool error = false}) {
   operationNotice.value = (
     message: message.toString().replaceFirst('Exception: ', ''),
-    error: message is Exception || message is Error,
+    error: error,
   );
 }
+
+void feedbackError(BuildContext c, Object error) =>
+    feedback(c, error, error: true);
 
 Future<bool> confirm(BuildContext c, String text) async =>
     await showDialog<bool>(
@@ -224,16 +238,16 @@ Future<T?> formDialog<T>(
   ),
 );
 Widget readOnlyValue(String label, Widget value, {String? tip}) => Padding(
-  padding: const EdgeInsets.only(bottom: 16),
+  padding: const EdgeInsets.only(bottom: 10),
   child: Semantics(
     readOnly: true,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         fieldLabel(label, tip),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 36),
           child: Align(
             alignment: Alignment.centerLeft,
             child: DefaultTextStyle.merge(
@@ -252,9 +266,8 @@ Widget selector(
   List<DropdownMenuItem<String>> items,
   ValueChanged<String?> changed, {
   String? tip,
-}) => items.length == 1 && value == items.single.value
-    ? readOnlyValue(label, items.single.child, tip: tip)
-    : items.length > 8
+  bool searchable = false,
+}) => searchable
     ? SearchPicker(
         label: label,
         value: value,
@@ -271,28 +284,40 @@ Widget selector(
         tip: tip,
       )
     : Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             fieldLabel(label, tip),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              key: ValueKey('select:$label:$value'),
-              initialValue: value,
-              isExpanded: true,
-              itemHeight: null,
-              selectedItemBuilder: (_) => [
-                for (final item in items)
-                  DefaultTextStyle.merge(
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    child: item.child,
+            const SizedBox(height: 4),
+            LayoutBuilder(
+              builder: (c, box) => InputDecorator(
+                isEmpty: value == null,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    key: ValueKey('select:$label:$value'),
+                    value: value,
+                    isDense: true,
+                    isExpanded: true,
+                    itemHeight: null,
+                    menuWidth: box.maxWidth.clamp(
+                      0.0,
+                      MediaQuery.textScalerOf(c).scale(320).clamp(320, 420),
+                    ),
+                    selectedItemBuilder: (_) => [
+                      for (final item in items)
+                        DefaultTextStyle.merge(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          child: item.child,
+                        ),
+                    ],
+                    items: items,
+                    onChanged: changed,
                   ),
-              ],
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: items,
-              onChanged: changed,
+                ),
+              ),
             ),
           ],
         ),

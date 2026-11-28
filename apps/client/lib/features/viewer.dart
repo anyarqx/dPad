@@ -99,7 +99,7 @@ class _ViewerState extends State<Viewer> {
                     bytes: widget.bytes,
                   );
                 } catch (e) {
-                  if (c.mounted) feedback(c, e);
+                  if (c.mounted) feedbackError(c, e);
                 }
               }, icon: Icons.download),
               IconButton(
